@@ -16,7 +16,8 @@ window.utils = {
     },
     initLucideIcons: () => {
         if (window.lucide) window.lucide.createIcons();
-    }
+    },
+    ready: Promise.resolve()
 };
 
 // Añadir animación de toast al documento

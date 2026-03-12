@@ -1,398 +1,230 @@
-document.addEventListener('DOMContentLoaded', () => {
-
+document.addEventListener('DOMContentLoaded', async () => {
+    await window.utils.ready;
+    const { showToast, initLucideIcons } = window.utils;
     const newListInput = document.getElementById('new-list-input');
     const addListBtn = document.getElementById('add-list-btn');
     const listsContainer = document.getElementById('lists-container');
     const suggestionsList = document.getElementById('suggestions-list');
 
-    let predefinedLists = [];
-
-    function generateId() {
-      return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    localStorage.removeItem('suggestions');
+    // Cargar sugerencias iniciales
+    let predefinedLists = JSON.parse(localStorage.getItem('suggestions')) || [
+    { name: "🏠 Tareas Hogar", tasks: [{ text: "Lavar ropa", status: "Pendiente", subtasks: [] }] },
+    { name: "🛒 Compras para el Hogar", tasks: [
+        { text: "Verduleria", status: "Pendiente", subtasks: [{ text: "Cebolla", completed: false }] },
+        { text: "Carneceria", status: "Pendiente", subtasks: [{ text: "Bife", completed: false }] }
+    ]}
+];
 
     function saveActiveLists() {
-      const activeLists = [];
-      document.querySelectorAll('#lists-container .task-list').forEach(listDiv => {
-        const listId = listDiv.dataset.id;
-        const name = listDiv.querySelector('h3').textContent;
-        const color = listDiv.style.backgroundColor;
-        const tasks = [];
-        listDiv.querySelectorAll('.task-item').forEach(taskLi => {
-          const taskId = taskLi.dataset.id;
-          const spanEl = taskLi.querySelector('span');
-          const text = spanEl.dataset.originalText || spanEl.textContent;
-          const statusSelect = taskLi.querySelector('select');
-          const taskStatus = statusSelect ? statusSelect.value : '';
-          const subtasks = [];
-          taskLi.querySelectorAll('.subtask-item').forEach(subLi => {
-            const checkbox = subLi.querySelector('input[type="checkbox"]');
-            const label = subLi.querySelector('span');
-            subtasks.push({
-              text: label.textContent,
-              completed: checkbox.checked 
+        const activeLists = [];
+        document.querySelectorAll('.task-list').forEach(listDiv => {
+            const tasks = [];
+            listDiv.querySelectorAll('.task-item').forEach(taskLi => {
+                const subtasks = [];
+                taskLi.querySelectorAll('.subtask-item').forEach(subLi => {
+                    subtasks.push({
+                        text: subLi.querySelector('span').textContent,
+                        completed: subLi.querySelector('input').checked 
+                    });
+                });
+                tasks.push({
+                    text: taskLi.querySelector('.task-text').textContent,
+                    status: taskLi.querySelector('.status-select').value,
+                    subtasks
+                });
             });
-          });
-          tasks.push({ id: taskId, text, status: taskStatus, subtasks });
+            activeLists.push({ name: listDiv.querySelector('h3').textContent, tasks });
         });
-        activeLists.push({ id: listId, name, color, tasks });
-      });
-      localStorage.setItem('activeLists', JSON.stringify(activeLists));
-    }
-
-    function loadActiveLists() {
-      const stored = localStorage.getItem('activeLists');
-      if (stored) {
-        const lists = JSON.parse(stored);
-        lists.forEach(listData => {
-          createNewList(listData);
-        });
-      }
-    }
-
-    function loadSuggestions() {
-        const stored = localStorage.getItem('suggestions');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            predefinedLists = (Array.isArray(parsed) && parsed.length > 0) ? parsed : getDefaultSuggestions();
-        } else {
-            predefinedLists = getDefaultSuggestions();
-        }
-        console.log("Sugerencias cargadas:", predefinedLists);
-        renderSuggestions();
-    }
-
-    function getDefaultSuggestions() {
-        return [
-            {
-                name: "Lista de Compras",
-                tasks: [
-                    { text: "Pan", status: "", subtasks: [{ text: "Integral", completed: false }, { text: "Blanco", completed: true }] }
-                ],
-                color: "#FFFFFF"
-            },
-            {
-                name: "Tareas del Hogar",
-                tasks: [
-                    { text: "Limpiar la cocina", status:"", subtasks: [] },
-                    { text: "Lavar la ropa", status: "", subtasks: [] }
-                ],
-                color: "#FFFFFF"
-            }
-        ];
+        localStorage.setItem('activeLists', JSON.stringify(activeLists));
     }
 
     function renderSuggestions() {
         suggestionsList.innerHTML = '';
         predefinedLists.forEach((list, index) => {
             const li = document.createElement('li');
-            const span = document.createElement('span');
-            span.textContent = list.name;
-            span.style.cursor = 'pointer';
-            span.addEventListener('click', () => {
-                console.log('Cargando sugerencia:', list);
-                list.tasks.forEach(task => {
-                    task.status = task.status || '';
-                    task.subtasks = task.subtasks || [];
-                });
-                createNewList(list);
-            });
-
-            const delBtn = document.createElement('button');
-            delBtn.classList.add('delete-suggestion-btn');
-            delBtn.innerHTML = '<img src="assets/img/papelera-xmark.png" alt="Eliminar sugerencia">';
-            delBtn.addEventListener('click', (e) => {
+            li.innerHTML = `
+                <span class="suggestion-name">${list.name}</span>
+                <button class="delete-suggestion-btn" style="background:none; color:inherit; padding:5px;">
+                    <i data-lucide="x"></i>
+                </button>
+            `;
+            
+            li.querySelector('.suggestion-name').onclick = () => createNewList(list);
+            li.querySelector('.delete-suggestion-btn').onclick = (e) => {
                 e.stopPropagation();
                 predefinedLists.splice(index, 1);
-                saveSuggestions();
+                localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
                 renderSuggestions();
-            });
-
-            li.appendChild(span);
-            li.appendChild(delBtn);
+            };
             suggestionsList.appendChild(li);
         });
+        initLucideIcons();
     }
 
-    function saveSuggestions() {
+    function saveListAsSuggestion(name, listDiv) {
+        const tasks = [];
+        listDiv.querySelectorAll('.task-item').forEach(taskEl => {
+            const subtasks = [];
+            taskEl.querySelectorAll('.subtask-item').forEach(sub => {
+                subtasks.push({ text: sub.querySelector('span').textContent, completed: sub.querySelector('input').checked });
+            });
+            tasks.push({ text: taskEl.querySelector('.task-text').textContent, status: taskEl.querySelector('.status-select').value, subtasks });
+        });
+
+        const existingIndex = predefinedLists.findIndex(l => l.name === name);
+        if (existingIndex > -1) predefinedLists[existingIndex] = { name, tasks };
+        else predefinedLists.push({ name, tasks });
+
         localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
+        renderSuggestions(); 
+        showToast('Sugerencia guardada ✨');
     }
 
     function createNewList(listData) {
-        const id = listData.id || generateId();
-        const { name, tasks = [], color = "#FFFFFF" } = listData;
-
         const listDiv = document.createElement('div');
-        listDiv.classList.add('task-list');
-        listDiv.dataset.id = id;
-        listDiv.style.backgroundColor = color;
+        listDiv.className = 'task-list';
+        listDiv.innerHTML = `
+            <h3 contenteditable="true">${listData.name}</h3>
+            <div class="task-columns" style="display:flex; gap:15px; margin-bottom:20px;">
+                <div class="task-column" data-status="Pendiente" style="flex:1">
+                    <h4 style="font-size:0.8rem; opacity:0.6; margin-bottom:10px;">PENDIENTES</h4>
+                    <ul style="padding:0; list-style:none;"></ul>
+                </div>
+                <div class="task-column" data-status="Realizada" style="flex:1">
+                    <h4 style="font-size:0.8rem; opacity:0.6; margin-bottom:10px;">REALIZADAS</h4>
+                    <ul style="padding:0; list-style:none;"></ul>
+                </div>
+            </div>
+            <div class="list-footer" style="display:flex; gap:10px; align-items:center;">
+                <input type="text" placeholder="Nueva tarea..." class="task-input" style="flex-grow:1">
+                <button class="add-task-btn"><i data-lucide="plus"></i></button>
+                <button class="save-suggestion-btn" style="background:#00b894" title="Guardar sugerencia"><i data-lucide="save"></i></button>
+                <button class="delete-list-btn" style="background:#ff7675" title="Eliminar lista"><i data-lucide="trash-2"></i></button>
+            </div>
+        `;
 
-        const title = document.createElement('h3');
-        title.textContent = name;
+        const input = listDiv.querySelector('.task-input');
+        const addTaskBtn = listDiv.querySelector('.add-task-btn');
 
-        const columnsContainer = document.createElement('div');
-        columnsContainer.classList.add('task-columns');
-
-        const columnData = {};
-        ['','Pendiente','Realizada'].forEach(status => {
-            const column = document.createElement('div');
-            column.classList.add('task-column');
-            column.style.display = 'none';
-            const colTitle = document.createElement('h3');
-            colTitle.textContent = status || '' || 'Tareas';
-            const ul = document.createElement('ul');
-            ul.dataset.status = status;
-            column.appendChild(colTitle);
-            column.appendChild(ul);
-            columnsContainer.appendChild(column);
-            columnData[status] = ul;
-        });
-
-        tasks.forEach(task => {
-            addTask(columnData[task.status || ''], task, columnData, columnsContainer);
-        });
-        updateColumnsDisplay();
-
-        const taskInput = document.createElement('input');
-        taskInput.type = 'text';
-        taskInput.placeholder = 'Nueva tarea...';
-
-        const addTaskBtn = document.createElement('button');
-        addTaskBtn.textContent = 'Agregar';
-        addTaskBtn.addEventListener('click', () => {
-            if (taskInput.value.trim()) {
-                addTask(columnData[''], { text: taskInput.value.trim(), status: '', subtasks: [] }, columnData, columnsContainer);
-                updateColumnsDisplay();
+        const addTaskHandler = () => {
+            if (input.value.trim()) {
+                addTask(listDiv, { text: input.value, status: 'Pendiente', subtasks: [] });
+                input.value = '';
                 saveActiveLists();
-                taskInput.value = '';
             }
-        });
+        };
 
-        const saveBtn = document.createElement('button');
-        saveBtn.classList.add('save-suggestion-btn');
-        saveBtn.innerHTML = '<img src="assets/img/guardar.png" alt="Guardar">';
-        saveBtn.addEventListener('click', () => saveListAsSuggestion(name, columnsContainer, color));
+        addTaskBtn.onclick = addTaskHandler;
+        input.onkeypress = (e) => { if(e.key === 'Enter') addTaskHandler(); };
 
-        const delListBtn = document.createElement('button');
-        delListBtn.classList.add('delete-list-btn');
-        delListBtn.innerHTML = '<img src="assets/img/basura.png" alt="Eliminar">';
-        delListBtn.addEventListener('click', () => {
-            listDiv.remove();
-            saveActiveLists();
-        });
+        listDiv.querySelector('.save-suggestion-btn').onclick = () => saveListAsSuggestion(listDiv.querySelector('h3').textContent, listDiv);
+        listDiv.querySelector('.delete-list-btn').onclick = () => { 
+            listDiv.remove(); 
+            saveActiveLists(); 
+        };
 
-        listDiv.appendChild(title);
-        listDiv.appendChild(columnsContainer);
-        listDiv.appendChild(taskInput);
-        listDiv.appendChild(addTaskBtn);
-        listDiv.appendChild(saveBtn);
-        listDiv.appendChild(delListBtn);
         listsContainer.appendChild(listDiv);
+        if (listData.tasks) listData.tasks.forEach(t => addTask(listDiv, t));
         saveActiveLists();
-
-        function updateColumnsDisplay() {
-            columnsContainer.querySelectorAll('.task-column').forEach(col => {
-                col.style.display = col.querySelector('ul').children.length ? 'flex' : 'none';
-            });
-        }
+        initLucideIcons();
     }
 
-    function createTaskElement(taskData) {
-        const { text, status = '', subtasks = [] } = taskData;
-        const taskId = taskData.id || generateId();
-
-        const li = document.createElement('li');
-        li.classList.add('task-item');
-        li.dataset.id = taskId;
-
-        const span = document.createElement('span');
-        span.textContent = text;
-        span.dataset.originalText = text;
-
-        const statusSelect = document.createElement('select');
-        ['', 'Pendiente', 'Realizada'].forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt;
-            option.textContent = opt || '';
-            if (opt === status) option.selected = true;
-            statusSelect.appendChild(option);
-        });
-
-        const subtaskContainer = document.createElement('div');
-        const subtaskList = document.createElement('ul');
-        subtaskContainer.appendChild(subtaskList);
-
-        const subtaskInput = document.createElement('input');
-        subtaskInput.type = 'text';
-        subtaskInput.placeholder = 'Agregar subtarea...';
-
-        const addSubBtn = document.createElement('button');
-        addSubBtn.textContent = 'Agregar subtarea';
-
-        subtasks.forEach(st => addSubtaskToElement(subtaskList, st, null)); // add later with events
-
-        subtaskContainer.appendChild(subtaskInput);
-        subtaskContainer.appendChild(addSubBtn);
-
-        const delBtn = document.createElement('button');
-        delBtn.innerHTML = '<img src="assets/img/papelera-vacia.png" alt="Eliminar tarea">';
-
-        li.appendChild(span);
-        li.appendChild(statusSelect);
-        li.appendChild(subtaskContainer);
-        li.appendChild(delBtn);
-
-        subtaskContainer.style.display = (status === 'Pendiente') ? 'block' : 'none';
-        if (status === 'Realizada') {
-            subtaskInput.disabled = true;
-            addSubBtn.disabled = true;
+    function addTask(listDiv, taskData) {
+        let targetCol = listDiv.querySelector(`.task-column[data-status="${taskData.status || 'Pendiente'}"] ul`);
+        if (!targetCol) {
+            targetCol = listDiv.querySelector('.task-column[data-status="Pendiente"] ul');
         }
+        const taskLi = document.createElement('li');
+        taskLi.className = 'task-item';
+        taskLi.innerHTML = `
+            <div class="task-main" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                <span class="task-text" style="flex-grow:1;">${taskData.text}</span>
+                <select class="status-select" style="padding:4px; border-radius:8px; border:1px solid #ddd;">
+                    <option value="Pendiente" ${taskData.status === 'Pendiente' ? 'selected' : ''}>⏳</option>
+                    <option value="Realizada" ${taskData.status === 'Realizada' ? 'selected' : ''}>✅</option>
+                </select>
+                <button class="delete-task-btn" style="background:none; color:#ff7675; padding:5px;"><i data-lucide="x"></i></button>
+            </div>
+            <ul class="subtask-list" style="list-style:none; padding-left:15px; margin-bottom:10px;"></ul>
+            <div class="subtask-controls" style="display:flex; gap:5px;">
+                <input type="text" placeholder="Subtarea..." class="sub-input" style="font-size:0.8rem; padding:5px 10px; flex-grow:1;">
+                <button class="add-sub-btn" style="padding:5px 12px;">+</button>
+            </div>
+        `;
 
-        return li;
-    }
+        const statusSelect = taskLi.querySelector('.status-select');
+        statusSelect.onchange = updateParentTaskStatus.bind(null, taskLi, listDiv, statusSelect);
 
-    function attachTaskEvents(li, taskData, columnData, columnsContainer) {
-        const taskId = li.dataset.id;
-        const statusSelect = li.querySelector('select');
-        const subtaskContainer = li.querySelector('div');
-        const subtaskList = li.querySelector('ul');
-        const subtaskInput = li.querySelector('input[type="text"]');
-        const addSubBtn = li.querySelector('button:nth-of-type(2)');
-        const delBtn = li.querySelector('button:last-child');
-
-        function checkAllSubtasksCompleted() {
-            const checkboxes = subtaskList.querySelectorAll('input[type="checkbox"]');
-            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-            if (allChecked && checkboxes.length > 0) {
-                statusSelect.value = 'Realizada';
-                statusSelect.dispatchEvent(new Event('change'));
-            }
-        }
-
-        delBtn.addEventListener('click', () => {
-            li.remove();
+        taskLi.querySelector('.delete-task-btn').onclick = () => {
+            taskLi.remove();
             saveActiveLists();
-        });
+        };
 
-        statusSelect.addEventListener('change', () => {
-            const newStatus = statusSelect.value;
-            columnData[newStatus].appendChild(li);
-            saveActiveLists();
-            subtaskContainer.style.display = (newStatus === 'Pendiente') ? 'block' : 'none';
-            if (newStatus === 'Realizada') {
-                subtaskInput.disabled = true;
-                addSubBtn.disabled = true;
-            } else {
-                subtaskInput.disabled = false;
-                addSubBtn.disabled = false;
-            }
-            columnsContainer.querySelectorAll('.task-column').forEach(col => {
-                col.style.display = col.querySelector('ul').children.length ? 'flex' : 'none';
-            });
-        });
+        const subIn = taskLi.querySelector('.sub-input');
+        const addSubBtn = taskLi.querySelector('.add-sub-btn');
 
-        addSubBtn.addEventListener('click', () => {
-            if (subtaskInput.value.trim()) {
-                const newSubtask = {
-                    text: subtaskInput.value.trim(),
-                    completed: false
-                };
-                addSubtaskToElement(subtaskList, newSubtask, checkAllSubtasksCompleted);
-                subtaskInput.value = '';
+        const addSubHandler = () => {
+            if (subIn.value.trim()) {
+                const subLi = document.createElement('li');
+                subLi.className = 'subtask-item';
+                subLi.style.cssText = "display:flex; align-items:center; gap:8px; font-size:0.85rem; margin-bottom:4px;";
+                subLi.innerHTML = `<input type="checkbox"> <span>${subIn.value}</span>`;
+                subLi.querySelector('input').onchange = updateParentTaskStatus.bind(null, taskLi, listDiv, statusSelect);
+                taskLi.querySelector('.subtask-list').appendChild(subLi);
+                subIn.value = '';
                 saveActiveLists();
             }
-        });
+        };
 
-        // Re-attach events to existing subtasks
-        li.querySelectorAll('.subtask-item input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', () => {
-                checkAllSubtasksCompleted();
-                saveActiveLists();
-            });
-        });
-        li.querySelectorAll('.subtask-item button').forEach(btn => {
-            btn.addEventListener('click', () => {
-                btn.closest('.subtask-item').remove();
-                saveActiveLists();
-            });
-        });
-    }
+        addSubBtn.onclick = addSubHandler;
+        subIn.onkeypress = (e) => { if(e.key === 'Enter') addSubHandler(); };
 
-    function addSubtaskToElement(subtaskList, subtaskData, checkCallback) {
-        const subLi = document.createElement('li');
-        subLi.classList.add('subtask-item');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = subtaskData.completed;
-        const label = document.createElement('span');
-        label.textContent = subtaskData.text;
+        targetCol.appendChild(taskLi);
 
-        const deleteSubBtn = document.createElement('button');
-        deleteSubBtn.textContent = '❌';
-        deleteSubBtn.addEventListener('click', () => subLi.remove());
-
-        checkbox.addEventListener('change', checkCallback);
-
-        subLi.appendChild(checkbox);
-        subLi.appendChild(label);
-        subLi.appendChild(deleteSubBtn);
-        subtaskList.appendChild(subLi);
-    }
-
-    function addTask(taskList, taskData, columnData, columnsContainer) {
-        const li = createTaskElement(taskData);
-        attachTaskEvents(li, taskData, columnData, columnsContainer);
-        taskList.appendChild(li);
-        saveActiveLists();
-    }
-
-    function saveListAsSuggestion(name, columnsContainer, color) {
-        const tasks = [];
-        columnsContainer.querySelectorAll('.task-column').forEach(column => {
-            column.querySelectorAll('.task-item').forEach(taskEl => {
-                const text = taskEl.querySelector('span').textContent;
-                const status = taskEl.querySelector('select').value;
-                const subtasks = [];
-                const subtaskList = taskEl.querySelector('ul');
-                if (subtaskList) {
-                    subtaskList.querySelectorAll('li').forEach(subEl => {
-                        const checkbox = subEl.querySelector('input[type="checkbox"]');
-                        const label = subEl.querySelector('span');
-                        if (label) {
-                            subtasks.push({
-                                text: label.textContent,
-                                completed: checkbox ? checkbox.checked : false
-                            });
-                        }
-                    });
-                }
-                tasks.push({
-                    text,
-                    status,
-                    subtasks
-                });
-            });
-        });
-        const index = predefinedLists.findIndex(l => l.name === name);
-        if (index >= 0) {
-            predefinedLists[index] = {
-                name: name,
-                tasks: tasks,
-                color: color
-            };
-        } else {
-            predefinedLists.push({
-                name: name,
-                tasks: tasks,
-                color: color
+        if (taskData.subtasks) {
+            taskData.subtasks.forEach(s => {
+                const subLi = document.createElement('li');
+                subLi.className = 'subtask-item';
+                subLi.style.cssText = "display:flex; align-items:center; gap:8px; font-size:0.85rem; margin-bottom:4px;";
+                subLi.innerHTML = `<input type="checkbox" ${s.completed ? 'checked' : ''}> <span>${s.text}</span>`;
+                subLi.querySelector('input').onchange = updateParentTaskStatus.bind(null, taskLi, listDiv, statusSelect);
+                taskLi.querySelector('.subtask-list').appendChild(subLi);
             });
         }
-        saveSuggestions();
-        renderSuggestions();
+        initLucideIcons();
     }
 
+function updateParentTaskStatus(taskLi, listDiv, statusSelect, e) {
+    const subtasks = taskLi.querySelectorAll('.subtask-item input');
+    
+    // CASO A: El cambio vino desde el SELECT de la tarea principal
+    if (e && e.target.tagName === 'SELECT') {
+        const newStatus = e.target.value;
+        if (newStatus === 'Pendiente') {
+            // Si el usuario vuelve a Pendiente, desmarcamos todas las subtareas
+            subtasks.forEach(cb => cb.checked = false);
+        }
+    } 
+    // CASO B: El cambio vino desde un CHECKBOX de subtarea
+    else {
+        if (subtasks.length > 0) {
+            const allDone = Array.from(subtasks).every(cb => cb.checked);
+            statusSelect.value = allDone ? 'Realizada' : 'Pendiente';
+        }
+    }
+
+    // Mover la tarea a la columna correspondiente
+    const targetColName = statusSelect.value;
+    const targetCol = listDiv.querySelector(`.task-column[data-status="${targetColName}"] ul`);
+    if (targetCol) {
+        targetCol.appendChild(taskLi);
+    }
+
+    saveActiveLists();
+    initLucideIcons();
+}
+
+    // Evento para crear lista nueva
     addListBtn.addEventListener('click', () => {
         if (newListInput.value.trim()) {
             createNewList({ name: newListInput.value.trim(), tasks: [] });
@@ -404,6 +236,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') addListBtn.click();
     });
 
-    loadSuggestions();
-    loadActiveLists();
+    // Modo Oscuro
+    document.getElementById('dark-toggle').onclick = () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    };
+
+    // Inicialización
+    if (localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
+    renderSuggestions();
+    const savedLists = JSON.parse(localStorage.getItem('activeLists'));
+    if (savedLists && savedLists.length > 0) {
+        savedLists.forEach(l => createNewList(l));
+    }
 });
