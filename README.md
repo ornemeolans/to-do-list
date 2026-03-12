@@ -1,24 +1,30 @@
-# To-Do List App ✅
+# Aesthetic To-Do List ✅
 
-## Funcionalidades
-- ✅ Crear/eliminar listas de tareas
-- ✅ Agregar/editar tareas con subtareas
-- ✅ Progreso automático subtareas (barra visual)
-- ✅ Drag & drop entre columnas (SortableJS)
-- ✅ Prioridad + fecha límite
-- ✅ Guardado localStorage (persistencia)
-- ✅ Modo oscuro
-- ✅ Sugerencias predefinidas
-- ✅ Icons Lucide + responsive design
+Una aplicación de gestión de tareas diseñada con una estética **Glassmorphism**, enfocada en la limpieza visual y una experiencia de usuario fluida. Este proyecto combina funcionalidades avanzadas de organización con un diseño moderno y minimalista.
 
-## Instalación
-1. Abre `index.html` en browser
-2. Todo funciona offline (CDNs)
+## 📸 Vista Previa
+La interfaz utiliza transparencias, desenfoques de fondo (backdrop-filter) y una paleta de colores pastel para lograr un look "aesthetic" tanto en modo claro como oscuro.
 
-## Bugs Originales Corregidos
-1. Scripts/utils.js cargados correctamente
-2. Icons Lucide renderizan dinámicamente  
-3. Barra progreso anima correctamente
-4. Selectores robustos (classes vs índices)
+## ✨ Funcionalidades Principales
+- **Gestión de Listas Dinámicas**: Crea, renombra (directamente en el título) y elimina múltiples listas de tareas.
+- **Sistema de Tareas y Subtareas**: Organiza tus pendientes con un segundo nivel de detalle para un control total.
+- **Sugerencias Personalizadas**: Guarda tus estructuras de listas favoritas como plantillas en la barra lateral para reutilizarlas con un solo clic.
+- **Modo Oscuro**: Cambia entre temas visuales para proteger tu vista y adaptar la app a tu estilo.
+- **Persistencia de Datos**: Gracias al uso de `localStorage`, tus tareas y preferencias se mantienen guardadas incluso después de cerrar el navegador.
+- **Interfaz Reactiva**: Notificaciones visuales (Toasts) y renderizado dinámico de iconos mediante Lucide Icons.
 
-**App lista para usar!** 🎉
+## 🛠️ Tecnologías Utilizadas
+- **HTML5**: Estructura semántica clara.
+- **CSS3 (Glassmorphism)**: Uso de variables CSS, Flexbox, Grid y efectos de desenfoque avanzados.
+- **JavaScript (Vanilla)**: Lógica pura para manipulación del DOM, manejo de estados y almacenamiento local.
+- **Lucide Icons**: Iconografía vectorial nítida y escalable.
+
+## 📂 Estructura del Proyecto
+```text
+├── index.html          # Estructura principal de la aplicación
+├── css/
+│   └── style.css       # Estilos detallados y variables de diseño
+├── js/
+│   ├── script.js       # Lógica principal de listas y tareas
+│   └── utils.js        # Helpers para iconos y notificaciones
+└── assets/             # Recursos adicionales (opcional)
