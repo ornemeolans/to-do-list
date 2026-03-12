@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tareas Aesthetic</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+        <aside class="suggestions-column">
+            <h2>Sugerencias ✨</h2>
+            <ul id="suggestions-list"></ul>
+        </aside>
+
+        <main class="lists-column">
+            <div class="header-main">
+                <h1>Mis Listas</h1>
+                <button id="dark-toggle" class="icon-btn" title="Cambiar Tema">🌙</button>
+            </div>
+            <div class="input-container" style="margin-bottom: 30px; display: flex; gap: 10px;">
+                <input type="text" id="new-list-input" placeholder="Nombre de la nueva lista..." style="flex-grow: 1;">
+                <button id="add-list-btn">Crear Lista</button>
+            </div>
+            <div id="lists-container"></div>
+        </main>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
