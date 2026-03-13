@@ -213,6 +213,79 @@ button:hover {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* --- NUEVAS REGLAS: MODO ENFOQUE & TIME-BOXING --- */
+
+.focus-active .app-container {
+    filter: blur(15px);
+    pointer-events: none;
+    transition: filter 0.5s ease;
+}
+
+#focus-overlay {
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100vh;
+    z-index: 10000; 
+    display: none; 
+    align-items: center; 
+    justify-content: center;
+}
+
+.focus-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 40px; 
+    border-radius: 40px; 
+    box-shadow: var(--shadow);
+    text-align: center; 
+    width: 90%; 
+    max-width: 450px;
+    animation: modalPop 0.4s ease;
+    backdrop-filter: blur(20px);
+}
+
+.pomodoro-container { 
+    position: relative; 
+    width: 200px; 
+    margin: 20px auto; 
+}
+
+#timer-svg { 
+    transform: rotate(-90deg); 
+    width: 200px; 
+    height: 200px; 
+}
+
+.timer-circle-bg { 
+    fill: none; 
+    stroke: rgba(0,0,0,0.05); 
+    stroke-width: 8; 
+}
+
+.timer-circle-progress { 
+    fill: none; 
+    stroke-width: 8; 
+    stroke-linecap: round; 
+    transition: stroke-dashoffset 1s linear, stroke 0.5s ease; 
+}
+
+.time-opt {
+    transition: 0.2s;
+}
+
+.time-opt:hover {
+    background: var(--accent-blue) !important;
+    color: white !important;
+    transform: scale(1.05);
+}
+
+@keyframes modalPop { 
+    from { transform: scale(0.9); opacity: 0; } 
+    to { transform: scale(1); opacity: 1; } 
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     .app-container { grid-template-columns: 1fr; }
