@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listsContainer = document.getElementById('lists-container');
     const suggestionsList = document.getElementById('suggestions-list');
     
-    // REINTEGRACIÓN: Lógica de Modo Oscuro
     const themeToggle = document.getElementById('dark-toggle');
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
@@ -18,6 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.setItem('theme', theme);
         };
     }
+
+    // Mejora 1: Crear lista con Enter
+    newListInput.onkeypress = (e) => { if (e.key === 'Enter') addListBtn.click(); };
 
     let predefinedLists = JSON.parse(localStorage.getItem('suggestions')) || [
         { name: "🏠 Tareas Hogar", tasks: [{ text: "Lavar ropa", status: "Pendiente", subtasks: [] }] },
@@ -95,23 +97,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         initLucideIcons();
     }
 
-    function saveListAsSuggestion(name, listDiv) {
-        const tasks = [];
-        listDiv.querySelectorAll('.task-item').forEach(taskLi => {
-            const subtasks = Array.from(taskLi.querySelectorAll('.subtask-item')).map(subLi => ({
-                text: subLi.dataset.originalText || subLi.querySelector('span').textContent,
-                completed: subLi.querySelector('input').checked
-            }));
-            tasks.push({ text: taskLi.querySelector('.task-text').textContent, status: taskLi.querySelector('.status-select').value, subtasks });
-        });
-        const existingIndex = predefinedLists.findIndex(l => l.name === name);
-        if (existingIndex > -1) predefinedLists[existingIndex] = { name, tasks };
-        else predefinedLists.push({ name, tasks });
-        localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
-        renderSuggestions(); 
-        showToast('Lista guardada ✨');
-    }
-
     function createNewList(listData) {
         const listDiv = document.createElement('div');
         listDiv.className = 'task-list';
@@ -128,13 +113,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <button class="delete-list-btn" style="background:#ff7675" title="Eliminar"><i data-lucide="trash-2"></i></button>
             </div>
         `;
-        listDiv.querySelector('.save-suggestion-btn').onclick = () => saveListAsSuggestion(listDiv.querySelector('h3').textContent, listDiv);
+        
+        // Mejora 1.2: Crear tarea con Enter
+        const taskInput = listDiv.querySelector('.task-input');
+        taskInput.onkeypress = (e) => { if (e.key === 'Enter') listDiv.querySelector('.add-task-btn').click(); };
+
+        listDiv.querySelector('.save-suggestion-btn').onclick = () => {
+            const tasks = [];
+            listDiv.querySelectorAll('.task-item').forEach(taskLi => {
+                const subtasks = Array.from(taskLi.querySelectorAll('.subtask-item')).map(subLi => ({
+                    text: subLi.dataset.originalText || subLi.querySelector('span').textContent,
+                    completed: subLi.querySelector('input').checked
+                }));
+                tasks.push({ text: taskLi.querySelector('.task-text').textContent, status: taskLi.querySelector('.status-select').value, subtasks });
+            });
+            const name = listDiv.querySelector('h3').textContent;
+            const existingIndex = predefinedLists.findIndex(l => l.name === name);
+            if (existingIndex > -1) predefinedLists[existingIndex] = { name, tasks };
+            else predefinedLists.push({ name, tasks });
+            localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
+            renderSuggestions(); 
+            showToast('Lista guardada ✨');
+        };
+
         listDiv.querySelector('.delete-list-btn').onclick = () => { listDiv.remove(); saveActiveLists(); };
         listDiv.querySelector('.add-task-btn').onclick = () => {
-            const input = listDiv.querySelector('.task-input');
-            if (input.value.trim()) {
-                addTask(listDiv, { text: input.value, status: 'Pendiente', subtasks: [] });
-                input.value = '';
+            if (taskInput.value.trim()) {
+                addTask(listDiv, { text: taskInput.value, status: 'Pendiente', subtasks: [] });
+                taskInput.value = '';
                 saveActiveLists();
             }
         };
@@ -182,8 +188,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveActiveLists();
         };
 
-        statusSelect.onchange = updateStatus;
-
         const addSub = (sub) => {
             const text = typeof sub === 'string' ? sub : (sub.text || subInput.value.trim());
             if (!text) return;
@@ -192,12 +196,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             const isImg = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
 
             if (isColor || isImg) {
+                // Mejora 2 y 3: Moodboard con visualización y eliminación estándar
                 const item = document.createElement('div');
                 item.className = 'mood-item';
-                item.style.cssText = `width:45px; height:45px; border-radius:12px; cursor:pointer; border:2px solid var(--glass-border); background-size:cover; background-position:center;`;
+                item.style.cssText = `position:relative; width:45px; height:45px; border-radius:12px; cursor:pointer; border:2px solid var(--glass-border); background-size:cover; background-position:center;`;
                 if (isColor) item.style.backgroundColor = text;
                 else item.style.backgroundImage = `url(${text})`;
-                item.onclick = () => { item.remove(); taskLi.querySelector(`.visual-hidden-sub[data-ref="${text}"]`)?.remove(); updateStatus(); };
+                
+                // Clic para tamaño completo
+                item.onclick = (e) => {
+                    if (e.target.closest('.delete-mood-btn')) return;
+                    showFullVisual(text, isColor);
+                };
+
+                // Botón de eliminar integrado
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-mood-btn';
+                delBtn.innerHTML = '✕';
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    item.remove();
+                    taskLi.querySelector(`.visual-hidden-sub[data-ref="${text}"]`)?.remove();
+                    updateStatus();
+                };
+                item.appendChild(delBtn);
                 moodboard.appendChild(item);
 
                 const hiddenSub = document.createElement('li');
@@ -220,8 +242,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateStatus();
         };
 
+        // Función para mostrar visuales en grande
+        function showFullVisual(content, isColor) {
+            const viewer = document.createElement('div');
+            viewer.className = 'visual-viewer-overlay';
+            viewer.innerHTML = isColor 
+                ? `<div class="viewer-content" style="background:${content}; width:300px; height:300px; border-radius:30px; border:4px solid white;"></div>`
+                : `<img src="${content}" class="viewer-content" style="max-width:90%; max-height:80%; border-radius:20px; box-shadow:0 20px 50px rgba(0,0,0,0.5);">`;
+            viewer.onclick = () => viewer.remove();
+            document.body.appendChild(viewer);
+        }
+
         taskLi.querySelector('.add-sub-btn').onclick = addSub;
         subInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); addSub(); } };
+        statusSelect.onchange = updateStatus;
         
         taskLi.querySelector('.task-edit-btn').onclick = () => {
             const current = { text: taskLi.querySelector('.task-text').textContent, subtasks: Array.from(taskLi.querySelectorAll('.subtask-item')).map(s => ({ text: s.dataset.originalText || s.querySelector('span').textContent, completed: s.querySelector('input').checked })) };

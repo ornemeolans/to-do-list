@@ -403,3 +403,45 @@ button:hover {
     z-index: 10;
     box-shadow: 0 8px 20px rgba(0,0,0,.2);
 }
+
+/* Estilos para el visor de imágenes/colores en grande */
+.visual-viewer-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 20000;
+    cursor: zoom-out;
+    animation: fadeIn 0.3s ease;
+}
+
+.viewer-content {
+    animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Botón de eliminar para los items del moodboard */
+.delete-mood-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    background: var(--accent-red) !important;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 2px solid white;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.mood-item:hover .delete-mood-btn {
+    opacity: 1;
+}
