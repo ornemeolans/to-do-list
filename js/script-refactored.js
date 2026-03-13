@@ -12,8 +12,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     { name: "🛒 Compras para el Hogar", tasks: [
         { text: "Verduleria", status: "Pendiente", subtasks: [{ text: "Cebolla", completed: false }] },
         { text: "Carneceria", status: "Pendiente", subtasks: [{ text: "Bife", completed: false }] }
+    ]},
+    { name: "📸 Sesión Fotográfica - {cliente}", tasks: [
+        { text: "Enviar presupuesto a {cliente}", status: "Pendiente", subtasks: [] },
+        { text: "Limpiar lentes para el {fecha}", status: "Pendiente", subtasks: [] },
+        { text: "Confirmar ubicación con {cliente}", status: "Pendiente", subtasks: [] },
+        { text: "Preparar equipo de iluminación", status: "Pendiente", subtasks: [] }
     ]}
 ];
+
 
     function saveActiveLists() {
         const activeLists = [];
@@ -38,18 +45,71 @@ document.addEventListener('DOMContentLoaded', async () => {
         localStorage.setItem('activeLists', JSON.stringify(activeLists));
     }
 
+    function extractVariables(text) {
+        const varMatch = text.match(/{([a-zA-Z]+)}/g);
+        if (!varMatch) return [];
+        return [...new Set(varMatch.map(v => v.slice(1, -1).toLowerCase()))];
+    }
+
+    function isSmartTemplate(list) {
+        const vars = new Set(extractVariables(list.name));
+        for (const task of list.tasks) {
+            extractVariables(task.text).forEach(v => vars.add(v));
+            for (const sub of task.subtasks || []) {
+                extractVariables(sub.text).forEach(v => vars.add(v));
+            }
+        }
+        return vars.size > 0 ? Array.from(vars) : null;
+    }
+
+    function replaceVariables(list, values) {
+        const replaceInText = (text) => text.replace(/{([a-zA-Z]+)}/g, (match, varName) => values[varName.toLowerCase()] || match);
+        
+        const processed = {
+            name: replaceInText(list.name),
+            tasks: list.tasks.map(task => ({
+                ...task,
+                text: replaceInText(task.text),
+                subtasks: (task.subtasks || []).map(sub => ({
+                    ...sub,
+                    text: replaceInText(sub.text)
+                }))
+            }))
+        };
+        return processed;
+    }
+
     function renderSuggestions() {
         suggestionsList.innerHTML = '';
         predefinedLists.forEach((list, index) => {
             const li = document.createElement('li');
+            const vars = isSmartTemplate(list);
+            const isSmart = !!vars;
+            const displayName = isSmart ? list.name.split(' - ')[0] : list.name;
+            const tooltipName = isSmart ? list.name.split(' - ')[0] : list.name;
             li.innerHTML = `
-                <span class="suggestion-name">${list.name}</span>
+                <span class="suggestion-name" title="${isSmart ? 'Plantilla Inteligente' : ''}">${displayName}</span>
                 <button class="delete-suggestion-btn" style="background:none; color:inherit; padding:5px;">
                     <i data-lucide="x"></i>
                 </button>
             `;
             
-            li.querySelector('.suggestion-name').onclick = () => createNewList(list);
+            li.querySelector('.suggestion-name').onclick = () => {
+                if (isSmart) {
+                    const fields = vars.map(v => ({ 
+                        var: v, 
+                        label: v.charAt(0).toUpperCase() + v.slice(1), 
+                        placeholder: v.toLowerCase().includes('fecha') || v.toLowerCase().includes('date') ? '' : `Ingresa ${v}`
+                    }));
+                    window.utils.showModal(
+                        `Plantilla: ${list.name}`,
+                        fields,
+                        (values) => createNewList(replaceVariables(list, values))
+                    );
+                } else {
+                    createNewList(list);
+                }
+            };
             li.querySelector('.delete-suggestion-btn').onclick = (e) => {
                 e.stopPropagation();
                 predefinedLists.splice(index, 1);
@@ -168,8 +228,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const subLi = document.createElement('li');
                 subLi.className = 'subtask-item';
                 subLi.style.cssText = "display:flex; align-items:center; gap:8px; font-size:0.85rem; margin-bottom:4px;";
-                subLi.innerHTML = `<input type="checkbox"> <span>${subIn.value}</span>`;
+                subLi.innerHTML = `<input type="checkbox"> <span>${subIn.value}</span> <button class="delete-sub-btn" style="background:none;border:none;color:#ff7675;padding:2px 5px;margin-left:auto;font-size:0.8rem;cursor:pointer;"><i data-lucide="x" style="width:14px;height:14px;"></i></button>`;
                 subLi.querySelector('input').onchange = updateParentTaskStatus.bind(null, taskLi, listDiv, statusSelect);
+                subLi.querySelector('.delete-sub-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    subLi.remove();
+                    updateParentTaskStatus(taskLi, listDiv, statusSelect);
+                    saveActiveLists();
+                };
                 taskLi.querySelector('.subtask-list').appendChild(subLi);
                 subIn.value = '';
                 saveActiveLists();
@@ -186,8 +252,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const subLi = document.createElement('li');
                 subLi.className = 'subtask-item';
                 subLi.style.cssText = "display:flex; align-items:center; gap:8px; font-size:0.85rem; margin-bottom:4px;";
-                subLi.innerHTML = `<input type="checkbox" ${s.completed ? 'checked' : ''}> <span>${s.text}</span>`;
+                subLi.innerHTML = `<input type="checkbox" ${s.completed ? 'checked' : ''}> <span>${s.text}</span> <button class="delete-sub-btn" style="background:none;border:none;color:#ff7675;padding:2px 5px;margin-left:auto;font-size:0.8rem;cursor:pointer;"><i data-lucide="x" style="width:14px;height:14px;"></i></button>`;
                 subLi.querySelector('input').onchange = updateParentTaskStatus.bind(null, taskLi, listDiv, statusSelect);
+                subLi.querySelector('.delete-sub-btn').onclick = (e) => {
+                    e.stopPropagation();
+                    subLi.remove();
+                    updateParentTaskStatus(taskLi, listDiv, statusSelect);
+                    saveActiveLists();
+                };
                 taskLi.querySelector('.subtask-list').appendChild(subLi);
             });
         }

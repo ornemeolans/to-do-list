@@ -182,6 +182,37 @@ button:hover {
 
 [data-theme="dark"] .subtask-item { color: #94a3b8; }
 
+/* Modal Styles */
+#template-modal .modal-overlay {
+    backdrop-filter: blur(8px);
+    animation: fadeIn 0.2s ease;
+}
+
+#template-modal .modal-content {
+    box-shadow: var(--shadow);
+    transform: scale(0.95);
+    animation: modalSlide 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+#template-modal input {
+    transition: all 0.2s;
+}
+
+#template-modal input:focus {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modalSlide {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Responsive */
 @media (max-width: 900px) {
     .app-container { grid-template-columns: 1fr; }
