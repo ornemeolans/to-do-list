@@ -7,28 +7,33 @@ window.utils = {
         setTimeout(() => toast.remove(), 2500);
     },
 
-    showModal: (title, fields, onConfirm) => {
-        const modal = document.getElementById('template-modal');
-        modal.innerHTML = `
-            <div class="modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(5px);">
-                <div class="modal-content" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:24px;padding:30px;width:90%;max-width:400px;">
-                    <h3 style="color:var(--accent-blue);margin-bottom:20px;">${title}</h3>
-                    ${fields.map(f => `<div style="margin-bottom:15px;"><label style="display:block;font-size:0.9rem;margin-bottom:5px;">${f.label}</label><input type="text" data-var="${f.var}" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--glass-border);"></div>`).join('')}
-                    <div style="display:flex;gap:10px;justify-content:flex-end;">
-                        <button id="modal-cancel" style="background:#eee;color:#333;border:none;padding:10px;border-radius:10px;cursor:pointer;">Cancelar</button>
-                        <button id="modal-confirm" style="background:var(--accent-blue);color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;">Confirmar</button>
+showModal: (title, fields, onConfirm) => {
+    const modal = document.getElementById('template-modal');
+    modal.innerHTML = `
+        <div class="modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(5px);">
+            <div class="modal-content" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:24px;padding:30px;width:90%;max-width:400px;">
+                <h3 style="color:var(--accent-blue);margin-bottom:20px;">${title}</h3>
+                ${fields.map(f => `
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;font-size:0.9rem;margin-bottom:5px;">${f.label}</label>
+                        <input type="${f.type || 'text'}" data-var="${f.var}" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--glass-border);">
                     </div>
+                `).join('')}
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button id="modal-cancel" style="background:#eee;color:#333;border:none;padding:10px;border-radius:10px;cursor:pointer;">Cancelar</button>
+                    <button id="modal-confirm" style="background:var(--accent-blue);color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;">Confirmar</button>
                 </div>
-            </div>`;
-        modal.style.display = 'block';
-        modal.querySelector('#modal-cancel').onclick = () => modal.style.display = 'none';
-        modal.querySelector('#modal-confirm').onclick = () => {
-            const vals = {};
-            modal.querySelectorAll('input').forEach(i => vals[i.dataset.var] = i.value);
-            onConfirm(vals);
-            modal.style.display = 'none';
-        };
-    },
+            </div>
+        </div>`;
+    modal.style.display = 'block';
+    modal.querySelector('#modal-cancel').onclick = () => modal.style.display = 'none';
+    modal.querySelector('#modal-confirm').onclick = () => {
+        const vals = {};
+        modal.querySelectorAll('input').forEach(i => vals[i.dataset.var] = i.value);
+        onConfirm(vals);
+        modal.style.display = 'none';
+    };
+},
 
     showTimePickerModal: (onSelect) => {
         const modal = document.getElementById('template-modal');
@@ -56,7 +61,6 @@ window.utils = {
     showFocusModal: (taskData, minutes, onExit) => {
         const overlay = document.getElementById('focus-overlay');
         
-        // Limpiamos cualquier rastro de temporizadores previos antes de iniciar uno nuevo
         if (window.currentFocusTimer) {
             clearInterval(window.currentFocusTimer);
             window.currentFocusTimer = null;
@@ -127,6 +131,49 @@ window.utils = {
     hideFocusModal: () => {
         document.getElementById('focus-overlay').style.display = 'none';
         document.body.classList.remove('focus-active');
+    },
+
+    // FUNCIÓN AÑADIDA: Modal de edición de tareas compatible con Moodboard
+    showTaskEditModal: (title, taskData, onSave) => {
+        const modal = document.getElementById('template-modal');
+        modal.innerHTML = `
+            <div class="modal-overlay" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(10px);">
+                <div class="modal-content" style="background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:24px;padding:30px;width:90%;max-width:450px;">
+                    <h3 style="color:var(--accent-blue);margin-bottom:20px;">${title}</h3>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;font-size:0.9rem;margin-bottom:5px;">Nombre de la tarea</label>
+                        <input type="text" id="edit-task-name" value="${taskData.text}" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--glass-border);">
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;font-size:0.9rem;margin-bottom:10px;">Subtareas y Visuales</label>
+                        <div id="edit-subtasks-list" style="max-height:200px; overflow-y:auto; padding-right:5px;">
+                            ${taskData.subtasks.map((s, i) => `
+                                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                                    <input type="text" value="${s.text}" style="flex-grow:1; padding:8px; border-radius:8px; border:1px solid var(--glass-border);">
+                                    <button onclick="this.parentElement.remove()" style="background:var(--accent-red); color:white; border:none; padding:5px 10px; border-radius:8px; cursor:pointer;">✕</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+                        <button id="edit-cancel" style="background:#eee;color:#333;border:none;padding:10px 15px;border-radius:10px;cursor:pointer;">Cancelar</button>
+                        <button id="edit-save" style="background:var(--accent-blue);color:white;border:none;padding:10px 15px;border-radius:10px;cursor:pointer;">Guardar</button>
+                    </div>
+                </div>
+            </div>`;
+        modal.style.display = 'block';
+        modal.querySelector('#edit-cancel').onclick = () => modal.style.display = 'none';
+        modal.querySelector('#edit-save').onclick = () => {
+            const newData = {
+                text: modal.querySelector('#edit-task-name').value,
+                subtasks: Array.from(modal.querySelectorAll('#edit-subtasks-list div')).map(div => ({
+                    text: div.querySelector('input').value,
+                    completed: false
+                }))
+            };
+            onSave(newData);
+            modal.style.display = 'none';
+        };
     },
 
     initLucideIcons: () => { if (window.lucide) window.lucide.createIcons(); },

@@ -124,8 +124,8 @@ button {
     background: var(--accent-blue);
     color: white;
     border: none;
-    padding: 12px 20px;
-    border-radius: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
@@ -152,18 +152,76 @@ button:hover {
 .task-main {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     margin-bottom: 12px;
 }
 
-.task-text { font-weight: 500; flex-grow: 1; }
+.visual-preview {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    box-shadow: 0.2s ease;
+}
+
+.visual-preview:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.task-text { 
+    font-weight: 500; 
+    flex-grow: 1; 
+}
+
+.task-edit-btn, .focus-btn, .delete-task-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.task-edit-btn {
+    color: var(--accent-blue);
+}
+
+.task-edit-btn:hover {
+    background: rgba(108, 92, 231, 0.1);
+    transform: scale(1.05);
+}
+
+.focus-btn {
+    color: var(--accent-blue);
+}
+
+.focus-btn:hover {
+    background: rgba(108, 92, 231, 0.1);
+}
+
+.delete-task-btn {
+    color: var(--accent-red);
+}
+
+.delete-task-btn:hover {
+    background: rgba(255, 118, 117, 0.1);
+}
 
 .status-select {
     padding: 5px 10px;
     border-radius: 8px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.5);
     font-size: 0.8rem;
+    cursor: pointer;
 }
+
+[data-theme="dark"] .status-select {
+    background: rgba(255,255,255,0.1);
+}
+
 
 /* Subtareas */
 .subtask-list {
@@ -174,11 +232,17 @@ button:hover {
 .subtask-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 0.9rem;
     margin-bottom: 5px;
     color: #636e72;
+    flex-wrap: wrap;
 }
+
+.subtask-preview {
+    flex-shrink: 0 !important;
+}
+
 
 [data-theme="dark"] .subtask-item { color: #94a3b8; }
 
@@ -191,7 +255,7 @@ button:hover {
 #template-modal .modal-content {
     box-shadow: var(--shadow);
     transform: scale(0.95);
-    animation: modalSlide 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: modalSlide 0.3s cubic-bezier(.25, .46, .45, .94);
 }
 
 #template-modal input {
@@ -200,7 +264,7 @@ button:hover {
 
 #template-modal input:focus {
     transform: scale(1.02);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, .1);
 }
 
 @keyframes fadeIn {
@@ -209,7 +273,7 @@ button:hover {
 }
 
 @keyframes modalSlide {
-    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    from { opacity: 0; transform: translateY(-20px) scale(.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -218,7 +282,7 @@ button:hover {
 .focus-active .app-container {
     filter: blur(15px);
     pointer-events: none;
-    transition: filter 0.5s ease;
+    transition: filter .5s ease;
 }
 
 #focus-overlay {
@@ -242,7 +306,7 @@ button:hover {
     text-align: center; 
     width: 90%; 
     max-width: 450px;
-    animation: modalPop 0.4s ease;
+    animation: modalPop .4s ease;
     backdrop-filter: blur(20px);
 }
 
@@ -260,7 +324,7 @@ button:hover {
 
 .timer-circle-bg { 
     fill: none; 
-    stroke: rgba(0,0,0,0.05); 
+    stroke: rgba(0,0,0,.05); 
     stroke-width: 8; 
 }
 
@@ -268,11 +332,11 @@ button:hover {
     fill: none; 
     stroke-width: 8; 
     stroke-linecap: round; 
-    transition: stroke-dashoffset 1s linear, stroke 0.5s ease; 
+    transition: stroke-dashoffset 1s linear, stroke .5s ease; 
 }
 
 .time-opt {
-    transition: 0.2s;
+    transition: .2s;
 }
 
 .time-opt:hover {
@@ -282,7 +346,7 @@ button:hover {
 }
 
 @keyframes modalPop { 
-    from { transform: scale(0.9); opacity: 0; } 
+    from { transform: scale(.9); opacity: 0; } 
     to { transform: scale(1); opacity: 1; } 
 }
 
@@ -290,4 +354,52 @@ button:hover {
 @media (max-width: 900px) {
     .app-container { grid-template-columns: 1fr; }
     .suggestions-column { display: none; }
+}
+
+/* Moodboard Styles */
+.mood-item:hover {
+    transform: scale(1.15);
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+}
+
+.task-edit-btn, .focus-btn, .delete-task-btn {
+    background: none;
+    border: none;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .2s ease;
+    display: flex;
+    align-items: center;
+    color: var(--accent-blue);
+}
+
+.task-edit-btn:hover, .focus-btn:hover {
+    background: rgba(108, 92, 231, .1);
+}
+
+.delete-task-btn { color: var(--accent-red); }
+.delete-task-btn:hover { background: rgba(255, 118, 117, .1); }
+
+/* Scrollbar aesthetic para el modal */
+#edit-subtasks-list::-webkit-scrollbar { width: 5px; }
+#edit-subtasks-list::-webkit-scrollbar-track { background: transparent; }
+#edit-subtasks-list::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 10px; }
+
+.delete-sub-btn {
+    opacity: .5;
+    transition: opacity .2s;
+}
+
+.delete-sub-btn:hover {
+    opacity: 1;
+    color: var(--accent-red) !important;
+}
+
+/* El resto de tus estilos de moodboard se mantienen igual */
+.mood-item:hover {
+    transform: scale(1.15);
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
 }
