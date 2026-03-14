@@ -218,6 +218,31 @@ button:hover {
     cursor: pointer;
 }
 
+/* Drag & Drop Styles */
+.draggable-task {
+    cursor: grab;
+}
+
+.draggable-task:active {
+    cursor: grabbing;
+    opacity: 0.85;
+    transform: rotate(2deg) scale(1.02);
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.task-column ul {
+    min-height: 40px;
+    transition: all 0.3s ease;
+}
+
+.task-column ul.drag-over {
+    background: rgba(108, 92, 231, 0.15) !important;
+    border: 2px dashed var(--accent-blue);
+    border-radius: 12px;
+    padding: 10px;
+}
+
 [data-theme="dark"] .status-select {
     background: rgba(255,255,255,0.1);
 }

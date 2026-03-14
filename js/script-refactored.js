@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    window.draggedTask = null;
     await window.utils.ready;
     const { showToast, initLucideIcons, showFocusModal, hideFocusModal } = window.utils;
     const newListInput = document.getElementById('new-list-input');
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.documentElement.setAttribute('data-theme', currentTheme);
 
     if (themeToggle) {
+        themeToggle.setAttribute('aria-label', 'Cambiar tema');
         themeToggle.onclick = () => {
             const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', theme);
@@ -69,7 +71,7 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
         predefinedLists.forEach((list, index) => {
             const vars = extractVariables(list);
             const li = document.createElement('li');
-            li.innerHTML = `<span>${list.name.split(' - ')[0]}</span><button class="delete-suggestion-btn"><i data-lucide="x"></i></button>`;
+            li.innerHTML = `<span>${list.name.split(' - ')[0]}</span><button class="delete-suggestion-btn" aria-label="Eliminar sugerencia"><i data-lucide="x"></i></button>`;
             
             li.onclick = (e) => {
                 if (e.target.closest('.delete-suggestion-btn')) return;
@@ -103,16 +105,16 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
         const listDiv = document.createElement('div');
         listDiv.className = 'task-list';
         listDiv.innerHTML = `
-            <h3 contenteditable="true">${listData.name}</h3>
-            <div class="task-columns" style="display:flex; gap:15px; margin-bottom:20px;">
-                <div class="task-column" data-status="Pendiente" style="flex:1"><h4 style="font-size:0.7rem; opacity:0.5;">PENDIENTES</h4><ul style="padding:0; list-style:none;"></ul></div>
-                <div class="task-column" data-status="Realizada" style="flex:1"><h4 style="font-size:0.7rem; opacity:0.5;">REALIZADAS</h4><ul style="padding:0; list-style:none;"></ul></div>
+            <h3 contenteditable="true" aria-label="Nombre de la lista (editar)">${listData.name}</h3>
+            <div class="task-columns" style="display:flex; gap:15px; margin-bottom:20px;" role="region" aria-label="Columnas de tareas">
+                <div class="task-column" data-status="Pendiente" style="flex:1"><h4 style="font-size:0.7rem; opacity:0.5;">PENDIENTES</h4><ul style="padding:0; list-style:none;" aria-label="Tareas pendientes"></ul></div>
+                <div class="task-column" data-status="Realizada" style="flex:1"><h4 style="font-size:0.7rem; opacity:0.5;">REALIZADAS</h4><ul style="padding:0; list-style:none;" aria-label="Tareas realizadas"></ul></div>
             </div>
             <div class="list-footer" style="display:flex; gap:10px; align-items:center;">
-                <input type="text" placeholder="Nueva tarea..." class="task-input" style="flex-grow:1">
-                <button class="add-task-btn"><i data-lucide="plus"></i></button>
-                <button class="save-suggestion-btn" style="background:#00b894" title="Guardar"><i data-lucide="save"></i></button>
-                <button class="delete-list-btn" style="background:#ff7675" title="Eliminar"><i data-lucide="trash-2"></i></button>
+                <input type="text" placeholder="Nueva tarea..." class="task-input" style="flex-grow:1" aria-label="Nueva tarea">
+                <button class="add-task-btn" aria-label="Agregar tarea"><i data-lucide="plus"></i></button>
+                <button class="save-suggestion-btn" style="background:#00b894" aria-label="Guardar como sugerencia"><i data-lucide="save"></i></button>
+                <button class="delete-list-btn" style="background:#ff7675" aria-label="Eliminar lista"><i data-lucide="trash-2"></i></button>
             </div>
         `;
         
@@ -146,6 +148,29 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
                 saveActiveLists();
             }
         };
+
+        // Drag & Drop setup for columns
+        listDiv.querySelectorAll('.task-column ul').forEach(ul => {
+            ul.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                ul.classList.add('drag-over');
+            });
+            ul.addEventListener('dragleave', (e) => {
+                ul.classList.remove('drag-over');
+            });
+            ul.addEventListener('drop', (e) => {
+                e.preventDefault();
+                ul.classList.remove('drag-over');
+                if (window.draggedTask) {
+                    const targetColumn = ul.closest('.task-column');
+                    const targetStatus = targetColumn.dataset.status;
+                    const statusSelect = window.draggedTask.querySelector('.status-select');
+                    statusSelect.value = targetStatus;
+                    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        });
+
         listsContainer.appendChild(listDiv);
         if (listData.tasks) listData.tasks.forEach(t => addTask(listDiv, t));
         initLucideIcons();
@@ -155,22 +180,31 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
         const targetCol = listDiv.querySelector(`.task-column[data-status="${taskData.status || 'Pendiente'}"] ul`);
         const taskLi = document.createElement('li');
         taskLi.className = 'task-item';
+        taskLi.draggable = true;
+        taskLi.classList.add('draggable-task');
+        taskLi.addEventListener('dragstart', (e) => {
+            window.draggedTask = taskLi;
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        taskLi.addEventListener('dragend', () => {
+            window.draggedTask = null;
+        });
         taskLi.innerHTML = `
             <div class="task-main" style="display:flex; align-items:center; gap:10px;">
                 <span class="task-text" style="flex-grow:1;">${taskData.text}</span>
-                <select class="status-select">
-                    <option value="Pendiente" ${taskData.status === 'Pendiente' ? 'selected' : ''}>⏳</option>
-                    <option value="Realizada" ${taskData.status === 'Realizada' ? 'selected' : ''}>✅</option>
+                <select class="status-select" aria-label="Estado de la tarea">
+                    <option value="Pendiente" ${taskData.status === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
+                    <option value="Realizada" ${taskData.status === 'Realizada' ? 'selected' : ''}>✅ Realizada</option>
                 </select>
-                <button class="task-edit-btn" title="Editar"><i data-lucide="edit-3" style="width:16px;"></i></button>
-                <button class="focus-btn" title="Enfoque"><i data-lucide="target" style="width:16px;"></i></button>
-                <button class="delete-task-btn" style="background:none; color:var(--accent-red);"><i data-lucide="x"></i></button>
+                <button class="task-edit-btn" title="Editar" aria-label="Editar tarea"><i data-lucide="edit-3" style="width:16px;"></i></button>
+                <button class="focus-btn" title="Enfoque" aria-label="Modo enfoque"><i data-lucide="target" style="width:16px;"></i></button>
+                <button class="delete-task-btn" aria-label="Eliminar tarea" style="background:none; color:var(--accent-red);"><i data-lucide="x"></i></button>
             </div>
             <div class="moodboard-container" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;"></div>
             <ul class="subtask-list" style="list-style:none; padding-left:15px; margin-top:10px;"></ul>
             <div class="subtask-controls" style="display:flex; gap:5px; margin-top:10px;">
                 <input type="text" placeholder="Subtarea..." class="sub-input" style="font-size:0.8rem; flex-grow:1;">
-                <button class="add-sub-btn">+</button>
+                <button class="add-sub-btn" aria-label="Agregar subtarea">+</button>
             </div>
         `;
 
