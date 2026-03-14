@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Mejora 1: Crear lista con Enter
-    newListInput.onkeypress = (e) => { if (e.key === 'Enter') addListBtn.click(); };
+newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); addListBtn.click(); } };
 
     let predefinedLists = JSON.parse(localStorage.getItem('suggestions')) || [
         { name: "🏠 Tareas Hogar", tasks: [{ text: "Lavar ropa", status: "Pendiente", subtasks: [] }] },
@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             name: "📸 Sesión Fotográfica - {cliente}", 
             tasks: [
                 { text: "Enviar presupuesto a {cliente}", status: "Pendiente", subtasks: [] },
-                { text: "Limpiar lentes para el {fecha}", status: "Pendiente", subtasks: [] }
+                { text: "Confirmar ubicación con {cliente}", status: "Pendiente", subtasks: [] },
+                { text: "Limpiar lentes para el {fecha}", status: "Pendiente", subtasks: [] },
+                { text: "Preparar equipo de ilumincaión antes del {fecha}", status: "Pendiente", subtasks: [] }
             ] 
         }
     ];
@@ -116,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Mejora 1.2: Crear tarea con Enter
         const taskInput = listDiv.querySelector('.task-input');
-        taskInput.onkeypress = (e) => { if (e.key === 'Enter') listDiv.querySelector('.add-task-btn').click(); };
+        taskInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); listDiv.querySelector('.add-task-btn').click(); } };
 
         listDiv.querySelector('.save-suggestion-btn').onclick = () => {
             const tasks = [];
@@ -287,7 +289,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    renderSuggestions();
+renderSuggestions();
+
+// FIX GLOBAL ENTER - V2: Más robusto para subtareas
+document.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const target = e.target;
+        if (target.classList.contains('task-input')) {
+            const btn = target.closest('.list-footer')?.querySelector('.add-task-btn');
+            if (btn) btn.click();
+        } else if (target.classList.contains('sub-input')) {
+            const controls = target.closest('.subtask-controls');
+            if (controls) {
+                const btn = controls.querySelector('.add-sub-btn');
+                if (btn) btn.click();
+            }
+        }
+    }
+});
+
     const saved = JSON.parse(localStorage.getItem('activeLists'));
     if (saved) saved.forEach(l => createNewList(l));
 });
