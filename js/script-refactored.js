@@ -33,7 +33,7 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
                 { text: "Confirmar ubicación con {cliente}", status: "Pendiente", subtasks: [] },
                 { text: "Limpiar lentes para el {fecha}", status: "Pendiente", subtasks: [] },
                 { text: "Preparar equipo de ilumincaión antes del {fecha}", status: "Pendiente", subtasks: [] }
-            ] 
+            ]
         }
     ];
 
@@ -180,15 +180,24 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
 
         const updateStatus = (e) => {
             const textCheckboxes = Array.from(taskLi.querySelectorAll('.subtask-item:not(.visual-hidden-sub) input'));
+            const allCheckboxes = Array.from(taskLi.querySelectorAll('.subtask-item input'));
+            
             if (e && e.target.tagName === 'SELECT') {
-                if (e.target.value === 'Pendiente') textCheckboxes.forEach(c => c.checked = false);
+                const newStatus = e.target.value;
+                if (newStatus === 'Realizada') {
+                    textCheckboxes.forEach(c => c.checked = true);
+                } else if (newStatus === 'Pendiente') {
+                    textCheckboxes.forEach(c => c.checked = false);
+                }
             } else if (textCheckboxes.length > 0) {
                 const allDone = textCheckboxes.every(c => c.checked);
                 statusSelect.value = allDone ? 'Realizada' : 'Pendiente';
             }
+
             listDiv.querySelector(`.task-column[data-status="${statusSelect.value}"] ul`).appendChild(taskLi);
             saveActiveLists();
         };
+
 
         const addSub = (sub) => {
             const text = typeof sub === 'string' ? sub : (sub.text || subInput.value.trim());
@@ -229,8 +238,9 @@ newListInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); 
                 hiddenSub.style.display = 'none';
                 hiddenSub.dataset.originalText = text;
                 hiddenSub.dataset.ref = text;
-                hiddenSub.innerHTML = `<input type="checkbox" checked> <span>${text}</span>`;
+                hiddenSub.innerHTML = `<input type="checkbox"> <span>${text}</span>`;
                 taskLi.querySelector('.subtask-list').appendChild(hiddenSub);
+
             } else {
                 const subLi = document.createElement('li');
                 subLi.className = 'subtask-item';
