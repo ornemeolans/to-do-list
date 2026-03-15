@@ -9,10 +9,15 @@ window.TaskService = {
         return varMatch ? [...new Set(varMatch.map(v => v.slice(1, -1).toLowerCase()))] : [];
     },
 
-    validateVisual: function(text) {
+validateVisual: function(text) {
         const isColor = /^#[0-9A-F]{6}$/i.test(text);
         const isImg = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
         return { isColor, isImg, content: text };
+    },
+
+    validateTaskText: function(text) {
+        const trimmed = text ? text.trim() : '';
+        return trimmed || null;  // null = inválido (vacío post-trim)
     },
 
     showFullVisual: function(content, isColor) {
@@ -287,11 +292,14 @@ addSubtask: function(taskLi, sub, subInput) {
         };
 
         listDiv.querySelector('.add-task-btn').onclick = () => {
-            if (inputRef.value.trim()) {
-                this.addTask(listDiv, { text: inputRef.value, status: 'Pendiente', subtasks: [] });
-                inputRef.value = '';
-                window.StorageService.saveActiveListsFromDOM(container);
+            const taskText = inputRef.value.trim();
+            if (!taskText) {
+                window.utils.showToast('No se pueden crear tareas vacías');
+                return;
             }
+            this.addTask(listDiv, { text: taskText, status: 'Pendiente', subtasks: [] });
+            inputRef.value = '';
+            window.StorageService.saveActiveListsFromDOM(container);
         };
 
         // Drag & Drop for columns
@@ -321,6 +329,9 @@ addSubtask: function(taskLi, sub, subInput) {
     },
 
     addTask: function(listDiv, taskData) {
+        const validText = this.validateTaskText(taskData.text);
+        if (!validText) return;  // Bloquea tareas vacías post-trim
+        
         const targetCol = listDiv.querySelector(`.task-column[data-status="${taskData.status || 'Pendiente'}"] ul`);
         const taskLi = document.createElement('li');
         taskLi.className = 'task-item';
@@ -341,7 +352,7 @@ addSubtask: function(taskLi, sub, subInput) {
         const taskText = document.createElement('span');
         taskText.className = 'task-text';
         taskText.style.cssText = 'flex-grow:1;';
-        taskText.textContent = taskData.text;
+        taskText.textContent = validText;
         taskMain.appendChild(taskText);
         
         // status-select

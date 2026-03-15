@@ -360,8 +360,14 @@ showModal: (title, fields, onConfirm) => {
         
         editCancel.onclick = () => modal.style.display = 'none';
         editSave.onclick = () => {
+            const newText = window.TaskService.validateTaskText(nameInput.value);
+            if (!newText) {
+                window.utils.showToast('Nombre de tarea requerido');
+                return;
+            }
+            
             const newData = {
-                text: nameInput.value,
+                text: newText,
                 subtasks: Array.from(subtasksList.querySelectorAll('div')).map(div => ({
                     text: div.querySelector('input').value,
                     completed: false
