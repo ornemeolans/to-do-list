@@ -14,6 +14,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     await waitForServices();
+    // Initialize state manager with wait for StateManager
+    await new Promise(resolve => {
+        const checkState = () => {
+            if (window.StateManager) {
+                window.StateManager.load();
+                window.StateManager.renderAll();
+                resolve();
+            } else {
+                setTimeout(checkState, 50);
+            }
+        };
+        checkState();
+    });
     
     window.draggedTask = null;
     const { showToast, initLucideIcons, showFocusModal, hideFocusModal } = window.utils;
@@ -96,17 +109,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     function createNewList(listData) {
-        window.TaskService.createNewList(listData, listsContainer);
+        const listId = window.StateManager.addList(listData.name);
+        window.StateManager.renderAll();
     }
 
     addListBtn.onclick = () => {
         if (newListInput.value.trim()) {
-            createNewList({ name: newListInput.value.trim(), tasks: [] });
+            window.StateManager.addList(newListInput.value.trim());
             newListInput.value = '';
-            window.StorageService.saveActiveListsFromDOM(listsContainer);
-            window.utils.showToast("Lista creada", "exito"); // Implementación de Toast
+            window.utils.showToast("Lista creada", "exito");
         } else {
-            window.utils.showToast("Escribe un nombre para la lista", "advertencia"); // Implementación de Toast
+            window.utils.showToast("Escribe un nombre para la lista", "advertencia");
         }
     };
 
@@ -132,8 +145,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Cargar listas guardadas
-    const saved = window.StorageService.loadActiveLists();
-    if (saved) saved.forEach(l => createNewList(l));
-    window.StorageService.saveActiveListsFromDOM(listsContainer);
+    // Already loaded in StateManager.load() and renderAll()
+    window.StateManager.renderAll();
 });

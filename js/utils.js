@@ -394,5 +394,31 @@ showToast: (msg, type = 'info') => {
     },
 
     initLucideIcons: () => { if (window.lucide) window.lucide.createIcons(); },
+    // UX Improvements
+    confirmDelete: function(message, onConfirm) {
+        return new Promise((resolve) => {
+            window.utils.showToast(`${message} (Click para deshacer)`, 'advertencia');
+            let undoTimeout;
+            
+            const undoListener = (e) => {
+                if (e.target.textContent.includes('deshacer') || e.target.closest('.toast')) {
+                    clearTimeout(undoTimeout);
+                    window.removeEventListener('click', undoListener);
+                    resolve(false); // Cancel delete
+                    window.StateManager.undo();
+                }
+            };
+            
+            window.addEventListener('click', undoListener, { once: true });
+            
+            undoTimeout = setTimeout(() => {
+                window.removeEventListener('click', undoListener);
+                resolve(true); // Proceed with delete
+                onConfirm();
+            }, 3000);
+        });
+    },
+
+    initLucideIcons: () => { if (window.lucide) window.lucide.createIcons(); },
     ready: Promise.resolve()
 };

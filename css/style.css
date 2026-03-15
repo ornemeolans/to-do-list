@@ -614,3 +614,17 @@ input[type="file"] {
     from { opacity: 0; transform: translateX(-50%) translateY(20px); }
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* Focus-visible for A11y */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[contenteditable]:focus-visible {
+    outline: 3px solid var(--accent-blue);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+
+.toast-advertencia:hover {
+    cursor: pointer;
+}

@@ -29,65 +29,71 @@ window.TaskService = {
             return;
         }
         element.dataset.originalText = text;
-        const listsContainer = document.getElementById('lists-container');
-        if (listsContainer) {
-            window.StorageService.saveActiveListsFromDOM(listsContainer);
+        
+        // Use state management
+        const taskLi = element.closest('.task-item');
+        if (taskLi) {
+            const listDiv = taskLi.closest('.task-list');
+            const listId = listDiv.dataset.listId;
+            const taskId = taskLi.dataset.taskId;
+            if (listId && taskId && window.StateManager) {
+                if (element.classList.contains('task-text')) {
+                    window.StateManager.updateTask(listId, taskId, { text: text });
+                }
+            }
+        } else {
+            // List name
+            const listDiv = element.closest('.task-list');
+            const listId = listDiv.dataset.listId;
+            if (listId && window.StateManager) {
+                window.StateManager.updateListName(listId, text);
+            }
         }
     },
 
-    addLocalImage: function (taskLi) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.opacity = '0';
-        input.style.position = 'fixed';
-        input.style.top = '0';
-        input.style.left = '0';
-        input.style.width = '100vw';
-        input.style.height = '100vh';
-        input.style.cursor = 'pointer';
-        document.body.appendChild(input);
-        input.click();
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
+    pickLocalImage: async function(callback) {
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.opacity = '0';
+            input.style.position = 'fixed';
+            input.style.top = '0';
+            input.style.left = '0';
+            input.style.width = '100vw';
+            input.style.height = '100vh';
+            input.style.cursor = 'pointer';
+            document.body.appendChild(input);
+            input.click();
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                input.remove();
+                
+                if (!file) {
+                    resolve(null);
+                    return;
+                }
+                
+                if (file.size > window.StorageService.MAX_IMAGE_SIZE) {
+                    window.utils.showToast(`Imagen muy grande (${(file.size/1024/1024).toFixed(1)}MB > 1MB)`, 'advertencia');
+                    resolve(null);
+                    return;
+                }
+                
                 const reader = new FileReader();
-                reader.onload = (ev) => {
+                reader.onload = async (ev) => {
                     const base64 = ev.target.result;
-                    this.addSubtask(taskLi, base64, null);
-                    window.utils.showToast('Imagen agregada al moodboard');
+                    resolve(base64);
                 };
                 reader.readAsDataURL(file);
-            }
-            input.remove();
-        };
-        input.onblur = () => input.remove();
-    },
-
-    showLocalFilePicker: function () {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.style.opacity = '0';
-        input.style.position = 'fixed';
-        input.style.top = '0';
-        input.style.left = '0';
-        input.style.width = '100vw';
-        input.style.height = '100vh';
-        input.style.cursor = 'pointer';
-        document.body.appendChild(input);
-        input.click();
-        input.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const url = URL.createObjectURL(file);
-                this.showFullVisual(url, false);
-                // Cleanup
-                setTimeout(() => URL.revokeObjectURL(url), 60000);
-            }
-            input.remove();
-        };
-        input.onblur = () => input.remove();
+            };
+            
+            input.onblur = () => {
+                input.remove();
+                resolve(null);
+            };
+        });
     },
 
     showFullVisual: function (content, isColor) {
@@ -139,9 +145,12 @@ window.TaskService = {
                         if (e.target.closest('.delete-mood-btn')) return;
                         this.showFullVisual(text, validation.isColor);
                     };
-                    item.oncontextmenu = (e) => {
+                    item.oncontextmenu = async (e) => {
                         e.preventDefault();
-                        this.showLocalFilePicker();
+                        const base64 = await this.pickLocalImage();
+                        if (base64) {
+                            this.addSubtask(taskLi, base64, null);
+                        }
                     };
                     
                     const delBtn = document.createElement('button');
@@ -285,9 +294,10 @@ window.TaskService = {
         }
     },
 
-createNewList: function (listData, container) {
+createNewList: function (listData, container, listId = null) {
     const listDiv = document.createElement('div');
     listDiv.className = 'task-list';
+    if (listId) listDiv.dataset.listId = listId;
 
     // Build with createElement + DocumentFragment (secure & performant)
     const fragment = document.createDocumentFragment();
@@ -412,16 +422,17 @@ createNewList: function (listData, container) {
         window.utils.showToast("Lista eliminada", "info");
     };
 
-    listDiv.querySelector('.add-task-btn').onclick = () => {
-        const taskText = inputRef.value.trim();
-        if (!taskText) {
-            window.utils.showToast('No se pueden crear tareas vacías', 'advertencia');
-            return;
-        }
-        this.addTask(listDiv, { text: taskText, status: 'Pendiente', subtasks: [] });
-        inputRef.value = '';
-        window.StorageService.saveActiveListsFromDOM(container);
-    };
+        listDiv.querySelector('.add-task-btn').onclick = () => {
+            const taskText = inputRef.value.trim();
+            if (!taskText) {
+                window.utils.showToast('No se pueden crear tareas vacías', 'advertencia');
+                return;
+            }
+            const listId = listDiv.dataset.listId;
+            window.StateManager.addTask(listId, { text: taskText, status: 'Pendiente', subtasks: [] });
+            inputRef.value = '';
+            window.StateManager.save();
+        };
 
     // Drag & Drop for columns
     listDiv.querySelectorAll('.task-column ul').forEach(ul => {
@@ -554,7 +565,13 @@ createNewList: function (listData, container) {
         imageBtn.setAttribute('aria-label', 'Agregar imagen local');
         imageBtn.innerHTML = '📁';
         imageBtn.style.cssText = 'padding:8px; border-radius:8px; background:var(--accent-blue); color:white; border:none; cursor:pointer; font-size:1rem;';
-        imageBtn.onclick = () => this.addLocalImage(taskLi);
+        imageBtn.onclick = async () => {
+            const base64 = await this.pickLocalImage();
+            if (base64) {
+                this.addSubtask(taskLi, base64, null);
+                window.utils.showToast('Imagen agregada al moodboard');
+            }
+        };
         subControls.appendChild(imageBtn);
         taskFragment.appendChild(subControls);
 
