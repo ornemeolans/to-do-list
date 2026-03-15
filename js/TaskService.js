@@ -11,8 +11,9 @@ window.TaskService = {
 
 validateVisual: function(text) {
         const isColor = /^#[0-9A-F]{6}$/i.test(text);
-        const isImg = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
-        return { isColor, isImg, content: text };
+        const isDataUrl = /^data:image\/[a-z]+;base64,/i.test(text);
+        const isImgUrl = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
+        return { isColor, isImg: isDataUrl || isImgUrl, content: text };
     },
 
     validateTaskText: function(text) {
@@ -32,6 +33,61 @@ validateVisual: function(text) {
         if (listsContainer) {
             window.StorageService.saveActiveListsFromDOM(listsContainer);
         }
+    },
+
+    addLocalImage: function(taskLi) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.opacity = '0';
+        input.style.position = 'fixed';
+        input.style.top = '0';
+        input.style.left = '0';
+        input.style.width = '100vw';
+        input.style.height = '100vh';
+        input.style.cursor = 'pointer';
+        document.body.appendChild(input);
+        input.click();
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const base64 = ev.target.result;
+                    this.addSubtask(taskLi, base64, null);
+                    window.utils.showToast('Imagen agregada al moodboard');
+                };
+                reader.readAsDataURL(file);
+            }
+            input.remove();
+        };
+        input.onblur = () => input.remove();
+    },
+
+    showLocalFilePicker: function() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.style.opacity = '0';
+        input.style.position = 'fixed';
+        input.style.top = '0';
+        input.style.left = '0';
+        input.style.width = '100vw';
+        input.style.height = '100vh';
+        input.style.cursor = 'pointer';
+        document.body.appendChild(input);
+        input.click();
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                this.showFullVisual(url, false);
+                // Cleanup
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }
+            input.remove();
+        };
+        input.onblur = () => input.remove();
     },
 
     showFullVisual: function(content, isColor) {
@@ -75,6 +131,10 @@ addSubtask: function(taskLi, sub, subInput) {
             item.onclick = (e) => {
                 if (e.target.closest('.delete-mood-btn')) return;
                 this.showFullVisual(text, validation.isColor);
+            };
+            item.oncontextmenu = (e) => {
+                e.preventDefault();
+                this.showLocalFilePicker();
             };
 
             const delBtn = document.createElement('button');
@@ -446,13 +506,22 @@ addSubtask: function(taskLi, sub, subInput) {
         subInput.type = 'text';
         subInput.placeholder = 'Subtarea...';
         subInput.className = 'sub-input';
-        subInput.style.cssText = 'font-size:0.8rem; flex-grow:1;';
+        subInput.style.cssText = 'font-size:0.8rem; flex-grow:1; flex-basis:0;';
+        subControls.appendChild(subInput);
+        
         const addSubBtn = document.createElement('button');
         addSubBtn.className = 'add-sub-btn';
         addSubBtn.setAttribute('aria-label', 'Agregar subtarea');
         addSubBtn.textContent = '+';
-        subControls.appendChild(subInput);
         subControls.appendChild(addSubBtn);
+        
+        const imageBtn = document.createElement('button');
+        imageBtn.className = 'add-image-btn';
+        imageBtn.setAttribute('aria-label', 'Agregar imagen local');
+        imageBtn.innerHTML = '📁';
+        imageBtn.style.cssText = 'padding:8px; border-radius:8px; background:var(--accent-blue); color:white; border:none; cursor:pointer; font-size:1rem;';
+        imageBtn.onclick = () => this.addLocalImage(taskLi);
+        subControls.appendChild(imageBtn);
         taskFragment.appendChild(subControls);
         
         taskLi.appendChild(taskFragment);

@@ -502,6 +502,56 @@ button:hover {
     background: rgba(108, 92, 231, 0.08);
 }
 
+/* Moodboard File Picker */
+.mood-item {
+    position: relative;
+}
+
+.mood-item:hover {
+    transform: scale(1.15);
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+}
+
+.mood-item::after {
+    content: '🖼️';
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    background: var(--accent-blue);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.mood-item:hover::after {
+    opacity: 1;
+}
+
+input[type="file"] {
+    cursor: pointer;
+}
+
+.add-image-btn:hover {
+    background: #5a4fcf !important;
+    transform: scale(1.05);
+}
+
+.add-image-btn:active {
+    transform: scale(0.98);
+}
+
+.subtask-controls {
+    gap: 4px !important;
+}
+
 .delete-mood-btn {
     position: absolute;
     top: -8px;
