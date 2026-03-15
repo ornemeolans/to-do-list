@@ -145,6 +145,11 @@ button:hover {
     list-style: none;
     border: 1px solid var(--glass-border);
     box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    pointer-events: auto !important;
+}
+
+.task-item * {
+    pointer-events: auto !important;
 }
 
 [data-theme="dark"] .task-item { background: #1e293b; }
@@ -262,6 +267,25 @@ button:hover {
     margin-bottom: 5px;
     color: #636e72;
     flex-wrap: wrap;
+    pointer-events: auto;
+}
+
+.subtask-item, .subtask-item * {
+    pointer-events: auto !important;
+}
+
+.subtask-item input[type="checkbox"] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+    margin-right: 8px !important;
+    z-index: 10 !important;
+}
+
+.subtask-item {
+    touch-action: manipulation !important;
 }
 
 .subtask-preview {
