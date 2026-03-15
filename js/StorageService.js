@@ -48,12 +48,13 @@ window.StorageService = {
         listsContainer.querySelectorAll('.task-list').forEach(listDiv => {
             const tasks = [];
             listDiv.querySelectorAll('.task-item').forEach(taskLi => {
-                const subtasks = Array.from(taskLi.querySelectorAll('.subtask-item')).map(subLi => ({
-                    text: subLi.dataset.originalText || subLi.querySelector('span').textContent,
-                    completed: subLi.querySelector('input').checked,
-                    isVisual: subLi.classList.contains('visual-hidden-sub')
-                }));
-                tasks.push({ text: taskLi.querySelector('.task-text').textContent, status: taskLi.querySelector('.status-select').value, subtasks });
+                // Single source: dataset.subtasks (no DOM scraping!)
+                const subtasks = JSON.parse(taskLi.dataset.subtasks || '[]');
+                tasks.push({ 
+                    text: taskLi.querySelector('.task-text').textContent, 
+                    status: taskLi.querySelector('.status-select').value, 
+                    subtasks 
+                });
             });
             activeLists.push({ name: listDiv.querySelector('h3').textContent, tasks });
         });
