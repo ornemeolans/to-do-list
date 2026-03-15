@@ -20,6 +20,20 @@ validateVisual: function(text) {
         return trimmed || null;  // null = inválido (vacío post-trim)
     },
 
+    handleInlineEdit: function(element) {
+        const text = element.textContent.trim();
+        if (!this.validateTaskText(text)) {
+            window.utils.showToast('El texto no puede estar vacío');
+            element.textContent = element.dataset.originalText || (element.classList.contains('task-text') ? 'Nueva tarea' : 'Nueva subtarea');
+            return;
+        }
+        element.dataset.originalText = text;
+        const listsContainer = document.getElementById('lists-container');
+        if (listsContainer) {
+            window.StorageService.saveActiveListsFromDOM(listsContainer);
+        }
+    },
+
     showFullVisual: function(content, isColor) {
         const viewer = document.createElement('div');
         viewer.className = 'visual-viewer-overlay';
@@ -99,7 +113,10 @@ addSubtask: function(taskLi, sub, subInput) {
             checkbox.type = 'checkbox';
             if (completed) checkbox.checked = true;
             const textSpan = document.createElement('span');
+            textSpan.contentEditable = true;
             textSpan.textContent = text;
+            textSpan.dataset.originalText = text;
+            textSpan.addEventListener('blur', () => this.handleInlineEdit(textSpan));
             
             const deleteBtnSub = document.createElement('button');
             deleteBtnSub.className = 'delete-sub-btn';
@@ -352,7 +369,10 @@ addSubtask: function(taskLi, sub, subInput) {
         const taskText = document.createElement('span');
         taskText.className = 'task-text';
         taskText.style.cssText = 'flex-grow:1;';
+        taskText.contentEditable = true;
         taskText.textContent = validText;
+        taskText.dataset.originalText = validText;
+        taskText.addEventListener('blur', () => this.handleInlineEdit(taskText));
         taskMain.appendChild(taskText);
         
         // status-select
