@@ -8,6 +8,9 @@
     --text-main: #2d3436;
     --accent-blue: #6c5ce7;
     --accent-red: #ff7675;
+    --accent-green: #00b894;
+    --accent-yellow: #ffd93d;
+    --accent-blue: #6c5ce7;
     --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
 }
 
@@ -268,6 +271,13 @@ button:hover {
     color: #636e72;
     flex-wrap: wrap;
     pointer-events: auto;
+}
+
+.subtask-item input[type="checkbox"] {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    position: relative;
+    z-index: 10; /* Asegura que esté por encima de la capa de arrastre */
 }
 
 .subtask-item, .subtask-item * {
@@ -573,4 +583,34 @@ input[type="file"] {
 
 .mood-item:hover .delete-mood-btn {
     opacity: 1;
+}
+
+/* Toast Notification Styles */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 300px;
+    padding: 12px 25px;
+    border-radius: 20px;
+    z-index: 10005;
+    font-weight: 500;
+    text-align: center;
+    color: white;
+    box-shadow: var(--shadow);
+    animation: toastSlideIn 0.3s ease;
+    transition: all 0.3s ease;
+}
+
+.toast-exito { background-color: var(--accent-green); border: 2px solid #00a085; }
+.toast-error { background-color: var(--accent-red); border: 2px solid #e55a5a; }
+.toast-advertencia { background-color: var(--accent-yellow); color: #2d3436; border: 2px solid #f39c12; }
+.toast-info { background-color: var(--accent-blue); border: 2px solid #5a4fcf; }
+
+.toast-hide { opacity: 0; transform: translateX(-50%) translateY(20px); }
+
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

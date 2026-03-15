@@ -45,13 +45,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let predefinedLists = window.StorageService.loadSuggestions();
 
-    function renderSuggestions() {
+    // CORRECCIÓN: Función expuesta globalmente para que TaskService pueda llamarla al guardar
+    window.renderSuggestions = function renderSuggestions() {
+        // Recargar los datos del storage antes de renderizar
+        predefinedLists = window.StorageService.loadSuggestions();
+        
         suggestionsList.innerHTML = '';
         predefinedLists.forEach((list, index) => {
             const vars = window.TaskService.extractVariables(list);
             const li = document.createElement('li');
             
-            // Secure DOM build (no innerHTML)
             const span = document.createElement('span');
             span.textContent = list.name.split(' - ')[0];
             li.appendChild(span);
@@ -84,12 +87,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             deleteBtn.onclick = (e) => {
                 e.stopPropagation();
                 predefinedLists = window.StorageService.deleteSuggestion(index);
-                renderSuggestions();
+                window.renderSuggestions(); // Uso de la referencia global
+                window.utils.showToast("Sugerencia eliminada", "info");
             };
             suggestionsList.appendChild(li);
         });
         initLucideIcons();
-    }
+    };
 
     function createNewList(listData) {
         window.TaskService.createNewList(listData, listsContainer);
@@ -100,20 +104,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             createNewList({ name: newListInput.value.trim(), tasks: [] });
             newListInput.value = '';
             window.StorageService.saveActiveListsFromDOM(listsContainer);
+            window.utils.showToast("Lista creada", "exito"); // Implementación de Toast
+        } else {
+            window.utils.showToast("Escribe un nombre para la lista", "advertencia"); // Implementación de Toast
         }
     };
 
-    renderSuggestions();
+    // Render inicial
+    window.renderSuggestions();
 
     // FIX GLOBAL ENTER para subtareas y task-input
     document.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            e.preventDefault();
             const target = e.target;
             if (target.classList.contains('task-input')) {
+                e.preventDefault();
                 const btn = target.closest('.list-footer')?.querySelector('.add-task-btn');
                 if (btn) btn.click();
             } else if (target.classList.contains('sub-input')) {
+                e.preventDefault();
                 const controls = target.closest('.subtask-controls');
                 if (controls) {
                     const btn = controls.querySelector('.add-sub-btn');

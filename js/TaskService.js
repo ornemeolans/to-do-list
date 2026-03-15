@@ -1,5 +1,5 @@
 window.TaskService = {
-    extractVariables: function(list) {
+    extractVariables: function (list) {
         let allText = list.name;
         list.tasks.forEach(t => {
             allText += " " + t.text;
@@ -9,19 +9,19 @@ window.TaskService = {
         return varMatch ? [...new Set(varMatch.map(v => v.slice(1, -1).toLowerCase()))] : [];
     },
 
-validateVisual: function(text) {
+    validateVisual: function (text) {
         const isColor = /^#[0-9A-F]{6}$/i.test(text);
         const isDataUrl = /^data:image\/[a-z]+;base64,/i.test(text);
         const isImgUrl = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
         return { isColor, isImg: isDataUrl || isImgUrl, content: text };
     },
 
-    validateTaskText: function(text) {
+    validateTaskText: function (text) {
         const trimmed = text ? text.trim() : '';
         return trimmed || null;  // null = inválido (vacío post-trim)
     },
 
-    handleInlineEdit: function(element) {
+    handleInlineEdit: function (element) {
         const text = element.textContent.trim();
         if (!this.validateTaskText(text)) {
             window.utils.showToast('El texto no puede estar vacío');
@@ -35,7 +35,7 @@ validateVisual: function(text) {
         }
     },
 
-    addLocalImage: function(taskLi) {
+    addLocalImage: function (taskLi) {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -64,7 +64,7 @@ validateVisual: function(text) {
         input.onblur = () => input.remove();
     },
 
-    showLocalFilePicker: function() {
+    showLocalFilePicker: function () {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = 'image/*';
@@ -90,10 +90,10 @@ validateVisual: function(text) {
         input.onblur = () => input.remove();
     },
 
-    showFullVisual: function(content, isColor) {
+    showFullVisual: function (content, isColor) {
         const viewer = document.createElement('div');
         viewer.className = 'visual-viewer-overlay';
-        
+
         // Build content securely with createElement
         let viewerContent;
         if (isColor) {
@@ -107,12 +107,12 @@ validateVisual: function(text) {
             viewerContent.style.cssText = 'max-width:90%; max-height:80%; border-radius:20px; box-shadow:0 20px 50px rgba(0,0,0,0.5);';
         }
         viewer.appendChild(viewerContent);
-        
+
         viewer.onclick = () => viewer.remove();
         document.body.appendChild(viewer);
     },
 
-addSubtask: function(taskLi, sub, subInput) {
+    addSubtask: function (taskLi, sub, subInput) {
         const text = typeof sub === 'string' ? sub : ((sub && sub.text) || (subInput && subInput.value ? subInput.value.trim() : ''));
         if (!text || text === '') return;
 
@@ -127,7 +127,7 @@ addSubtask: function(taskLi, sub, subInput) {
             item.style.cssText = `position:relative; width:45px; height:45px; border-radius:12px; cursor:pointer; border:2px solid var(--glass-border); background-size:cover; background-position:center;`;
             if (validation.isColor) item.style.backgroundColor = text;
             else item.style.backgroundImage = `url(${text})`;
-            
+
             item.onclick = (e) => {
                 if (e.target.closest('.delete-mood-btn')) return;
                 this.showFullVisual(text, validation.isColor);
@@ -168,7 +168,7 @@ addSubtask: function(taskLi, sub, subInput) {
             const subLi = document.createElement('li');
             subLi.className = 'subtask-item';
             const completed = sub && sub.completed ? 'checked' : '';
-            
+
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             if (completed) checkbox.checked = true;
@@ -177,7 +177,7 @@ addSubtask: function(taskLi, sub, subInput) {
             textSpan.textContent = text;
             textSpan.dataset.originalText = text;
             textSpan.addEventListener('blur', () => this.handleInlineEdit(textSpan));
-            
+
             const deleteBtnSub = document.createElement('button');
             deleteBtnSub.className = 'delete-sub-btn';
             deleteBtnSub.style.cssText = 'margin-left:auto; background:none; color:var(--accent-red); border:none; cursor:pointer;';
@@ -185,18 +185,27 @@ addSubtask: function(taskLi, sub, subInput) {
             trashIcon.dataset.lucide = 'trash-2';
             trashIcon.style.cssText = 'width:12px;';
             deleteBtnSub.appendChild(trashIcon);
-            
+
             subLi.appendChild(checkbox);
             subLi.appendChild(textSpan);
             subLi.appendChild(deleteBtnSub);
             subtaskList.appendChild(subLi);
-            
+
             // Eventos con flag para evitar el bucle de sincronización
-            checkbox.addEventListener('change', () => this.updateTaskStatus(taskLi, false));
-            deleteBtnSub.addEventListener('click', (e) => { 
+            checkbox.addEventListener('change', (e) => {
+                // Evita que el click sea capturado por el li principal que es arrastrable
                 e.stopPropagation();
-                subLi.remove(); 
-                this.updateTaskStatus(taskLi, false); 
+                // Sincroniza el estado de la tarea principal (si todas las subs están listas)
+                this.updateTaskStatus(taskLi, false);
+                // Fuerza el guardado en localStorage para que el cambio persista al recargar
+                window.StorageService.saveActiveListsFromDOM(document.getElementById('lists-container'));
+            });
+            deleteBtnSub.addEventListener('click', (e) => {
+                e.stopPropagation();
+                subLi.remove();
+                this.updateTaskStatus(taskLi, false);
+                // Asegura que la eliminación se guarde inmediatamente
+                window.StorageService.saveActiveListsFromDOM(document.getElementById('lists-container'));
             });
         }
 
@@ -205,13 +214,13 @@ addSubtask: function(taskLi, sub, subInput) {
         this.updateTaskStatus(taskLi, false);
     },
 
-    updateTaskStatus: function(taskLi, isManualStatusChange = true) {
+    updateTaskStatus: function (taskLi, isManualStatusChange = true) {
         const listDiv = taskLi.closest('.task-list');
         const statusSelect = taskLi.querySelector('.status-select');
         const textCheckboxes = Array.from(taskLi.querySelectorAll('.subtask-item:not(.visual-hidden-sub) input'));
-        
+
         const currentStatus = statusSelect.value;
-        
+
         // 1. SOLO sincronizamos subtáreas si el cambio vino del selector de estado principal
         if (isManualStatusChange) {
             if (currentStatus === 'Realizada') {
@@ -220,14 +229,14 @@ addSubtask: function(taskLi, sub, subInput) {
                 textCheckboxes.forEach(c => c.checked = false);
             }
         }
-        
+
         // 2. Recalcular si todas están marcadas para actualizar el selector de estado
-        const allDone = textCheckboxes.length === 0 ? 
-            (statusSelect.value === 'Realizada') : 
+        const allDone = textCheckboxes.length === 0 ?
+            (statusSelect.value === 'Realizada') :
             textCheckboxes.every(c => c.checked);
-            
+
         const newStatus = allDone ? 'Realizada' : 'Pendiente';
-        
+
         // 3. SI el estado debe cambiar según las subtáreas, lo actualizamos
         if (newStatus !== currentStatus) {
             statusSelect.value = newStatus;
@@ -244,171 +253,183 @@ addSubtask: function(taskLi, sub, subInput) {
         window.StorageService.saveActiveListsFromDOM(listsContainer);
     },
 
-    createNewList: function(listData, container) {
-        const listDiv = document.createElement('div');
-        listDiv.className = 'task-list';
+createNewList: function (listData, container) {
+    const listDiv = document.createElement('div');
+    listDiv.className = 'task-list';
 
-        // Build with createElement + DocumentFragment (secure & performant)
-        const fragment = document.createDocumentFragment();
-        
-        // h3
-        const h3 = document.createElement('h3');
-        h3.contentEditable = true;
-        h3.setAttribute('aria-label', 'Nombre de la lista (editar)');
-        h3.textContent = listData.name;
-        fragment.appendChild(h3);
-        
-        // task-columns container
-        const taskColumns = document.createElement('div');
-        taskColumns.className = 'task-columns';
-        taskColumns.style.cssText = 'display:flex; gap:15px; margin-bottom:20px;';
-        taskColumns.setAttribute('role', 'region');
-        taskColumns.setAttribute('aria-label', 'Columnas de tareas');
-        
-        // Pendiente column
-        const colPending = document.createElement('div');
-        colPending.className = 'task-column';
-        colPending.dataset.status = 'Pendiente';
-        colPending.style.cssText = 'flex:1';
-        const h4Pending = document.createElement('h4');
-        h4Pending.style.cssText = 'font-size:0.7rem; opacity:0.5;';
-        h4Pending.textContent = 'PENDIENTES';
-        const ulPending = document.createElement('ul');
-        ulPending.style.cssText = 'padding:0; list-style:none;';
-        ulPending.setAttribute('aria-label', 'Tareas pendientes');
-        colPending.appendChild(h4Pending);
-        colPending.appendChild(ulPending);
-        
-        // Realizada column  
-        const colDone = document.createElement('div');
-        colDone.className = 'task-column';
-        colDone.dataset.status = 'Realizada';
-        colDone.style.cssText = 'flex:1';
-        const h4Done = document.createElement('h4');
-        h4Done.style.cssText = 'font-size:0.7rem; opacity:0.5;';
-        h4Done.textContent = 'REALIZADAS';
-        const ulDone = document.createElement('ul');
-        ulDone.style.cssText = 'padding:0; list-style:none;';
-        ulDone.setAttribute('aria-label', 'Tareas realizadas');
-        colDone.appendChild(h4Done);
-        colDone.appendChild(ulDone);
-        
-        taskColumns.appendChild(colPending);
-        taskColumns.appendChild(colDone);
-        fragment.appendChild(taskColumns);
-        
-        // list-footer
-        const listFooter = document.createElement('div');
-        listFooter.className = 'list-footer';
-        listFooter.style.cssText = 'display:flex; gap:10px; align-items:center;';
-        
-        const taskInput = document.createElement('input');
-        taskInput.type = 'text';
-        taskInput.placeholder = 'Nueva tarea...';
-        taskInput.className = 'task-input';
-        taskInput.style.cssText = 'flex-grow:1';
-        taskInput.setAttribute('aria-label', 'Nueva tarea');
-        
-        const addTaskBtn = document.createElement('button');
-        addTaskBtn.className = 'add-task-btn';
-        addTaskBtn.setAttribute('aria-label', 'Agregar tarea');
-        const iPlus = document.createElement('i');
-        iPlus.dataset.lucide = 'plus';
-        addTaskBtn.appendChild(iPlus);
-        
-        const saveBtn = document.createElement('button');
-        saveBtn.className = 'save-suggestion-btn';
-        saveBtn.style.cssText = 'background:#00b894';
-        saveBtn.setAttribute('aria-label', 'Guardar como sugerencia');
-        const iSave = document.createElement('i');
-        iSave.dataset.lucide = 'save';
-        saveBtn.appendChild(iSave);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-list-btn';
-        deleteBtn.style.cssText = 'background:#ff7675';
-        deleteBtn.setAttribute('aria-label', 'Eliminar lista');
-        const iTrash = document.createElement('i');
-        iTrash.dataset.lucide = 'trash-2';
-        deleteBtn.appendChild(iTrash);
-        
-        listFooter.appendChild(taskInput);
-        listFooter.appendChild(addTaskBtn);
-        listFooter.appendChild(saveBtn);
-        listFooter.appendChild(deleteBtn);
-        fragment.appendChild(listFooter);
-        
-        listDiv.appendChild(fragment);
+    // Build with createElement + DocumentFragment (secure & performant)
+    const fragment = document.createDocumentFragment();
 
-        // Use DOM ref instead of re-query (fix TS 2451)
-        const inputRef = listDiv.querySelector('.task-input');
-        inputRef.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); listDiv.querySelector('.add-task-btn').click(); } };
+    // h3
+    const h3 = document.createElement('h3');
+    h3.contentEditable = true;
+    h3.setAttribute('aria-label', 'Nombre de la lista (editar)');
+    h3.textContent = listData.name;
+    fragment.appendChild(h3);
 
-        // Wire events
-        listDiv.querySelector('.save-suggestion-btn').onclick = () => {
-            const tasks = [];
-            listDiv.querySelectorAll('.task-item').forEach(taskLi => {
-                const subtasks = Array.from(taskLi.querySelectorAll('.subtask-item')).map(subLi => ({
-                    text: subLi.dataset.originalText || subLi.querySelector('span').textContent,
-                    completed: subLi.querySelector('input').checked,
-                    isVisual: subLi.classList.contains('visual-hidden-sub')
-                }));
-                tasks.push({ 
-                    text: taskLi.querySelector('.task-text').textContent, 
-                    status: taskLi.querySelector('.status-select').value, 
-                    subtasks 
-                });
-            });
-            const name = listDiv.querySelector('h3').textContent;
-            window.StorageService.saveListAsSuggestion({name, tasks});
-        };
+    // task-columns container
+    const taskColumns = document.createElement('div');
+    taskColumns.className = 'task-columns';
+    taskColumns.style.cssText = 'display:flex; gap:15px; margin-bottom:20px;';
+    taskColumns.setAttribute('role', 'region');
+    taskColumns.setAttribute('aria-label', 'Columnas de tareas');
 
-        listDiv.querySelector('.delete-list-btn').onclick = () => { 
-            listDiv.remove(); 
-            window.StorageService.saveActiveListsFromDOM(container); 
-        };
+    // Pendiente column
+    const colPending = document.createElement('div');
+    colPending.className = 'task-column';
+    colPending.dataset.status = 'Pendiente';
+    colPending.style.cssText = 'flex:1';
+    const h4Pending = document.createElement('h4');
+    h4Pending.style.cssText = 'font-size:0.7rem; opacity:0.5;';
+    h4Pending.textContent = 'PENDIENTES';
+    const ulPending = document.createElement('ul');
+    ulPending.style.cssText = 'padding:0; list-style:none;';
+    ulPending.setAttribute('aria-label', 'Tareas pendientes');
+    colPending.appendChild(h4Pending);
+    colPending.appendChild(ulPending);
 
-        listDiv.querySelector('.add-task-btn').onclick = () => {
-            const taskText = inputRef.value.trim();
-            if (!taskText) {
-                window.utils.showToast('No se pueden crear tareas vacías');
-                return;
-            }
-            this.addTask(listDiv, { text: taskText, status: 'Pendiente', subtasks: [] });
-            inputRef.value = '';
-            window.StorageService.saveActiveListsFromDOM(container);
-        };
+    // Realizada column  
+    const colDone = document.createElement('div');
+    colDone.className = 'task-column';
+    colDone.dataset.status = 'Realizada';
+    colDone.style.cssText = 'flex:1';
+    const h4Done = document.createElement('h4');
+    h4Done.style.cssText = 'font-size:0.7rem; opacity:0.5;';
+    h4Done.textContent = 'REALIZADAS';
+    const ulDone = document.createElement('ul');
+    ulDone.style.cssText = 'padding:0; list-style:none;';
+    ulDone.setAttribute('aria-label', 'Tareas realizadas');
+    colDone.appendChild(h4Done);
+    colDone.appendChild(ulDone);
 
-        // Drag & Drop for columns
-        listDiv.querySelectorAll('.task-column ul').forEach(ul => {
-            ul.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                ul.classList.add('drag-over');
-            });
-            ul.addEventListener('dragleave', () => ul.classList.remove('drag-over'));
-            ul.addEventListener('drop', (e) => {
-                e.preventDefault();
-                ul.classList.remove('drag-over');
-                if (window.draggedTask) {
-                    const targetColumn = ul.closest('.task-column');
-                    const targetStatus = targetColumn.dataset.status;
-                    const statusSelect = window.draggedTask.querySelector('.status-select');
-                    statusSelect.value = targetStatus;
-                    statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+    taskColumns.appendChild(colPending);
+    taskColumns.appendChild(colDone);
+    fragment.appendChild(taskColumns);
+
+    // list-footer
+    const listFooter = document.createElement('div');
+    listFooter.className = 'list-footer';
+    listFooter.style.cssText = 'display:flex; gap:10px; align-items:center;';
+
+    const taskInput = document.createElement('input');
+    taskInput.type = 'text';
+    taskInput.placeholder = 'Nueva tarea...';
+    taskInput.className = 'task-input';
+    taskInput.style.cssText = 'flex-grow:1';
+    taskInput.setAttribute('aria-label', 'Nueva tarea');
+
+    const addTaskBtn = document.createElement('button');
+    addTaskBtn.className = 'add-task-btn';
+    addTaskBtn.setAttribute('aria-label', 'Agregar tarea');
+    const iPlus = document.createElement('i');
+    iPlus.dataset.lucide = 'plus';
+    addTaskBtn.appendChild(iPlus);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'save-suggestion-btn';
+    saveBtn.style.cssText = 'background:#00b894';
+    saveBtn.setAttribute('aria-label', 'Guardar como sugerencia');
+    const iSave = document.createElement('i');
+    iSave.dataset.lucide = 'save';
+    saveBtn.appendChild(iSave);
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-list-btn';
+    deleteBtn.style.cssText = 'background:#ff7675';
+    deleteBtn.setAttribute('aria-label', 'Eliminar lista');
+    const iTrash = document.createElement('i');
+    iTrash.dataset.lucide = 'trash-2';
+    deleteBtn.appendChild(iTrash);
+
+    listFooter.appendChild(taskInput);
+    listFooter.appendChild(addTaskBtn);
+    listFooter.appendChild(saveBtn);
+    listFooter.appendChild(deleteBtn);
+    fragment.appendChild(listFooter);
+
+    listDiv.appendChild(fragment);
+
+    // Use DOM ref instead of re-query (fix TS 2451)
+    const inputRef = listDiv.querySelector('.task-input');
+    inputRef.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); listDiv.querySelector('.add-task-btn').click(); } };
+
+    // Wire events
+    listDiv.querySelector('.save-suggestion-btn').onclick = () => {
+        const tasks = [];
+        listDiv.querySelectorAll('.task-item').forEach(taskLi => {
+            const subtasks = Array.from(taskLi.querySelectorAll('.subtask-item')).map(subLi => ({
+                text: subLi.dataset.originalText || subLi.querySelector('span').textContent,
+                completed: subLi.querySelector('input').checked,
+                isVisual: subLi.classList.contains('visual-hidden-sub')
+            }));
+            tasks.push({
+                text: taskLi.querySelector('.task-text').textContent,
+                status: taskLi.querySelector('.status-select').value,
+                subtasks
             });
         });
+        const name = listDiv.querySelector('h3').textContent;
+        
+        // CORRECCIÓN: Guardar y actualizar interfaz inmediatamente
+        window.StorageService.saveListAsSuggestion({ name, tasks });
+        
+        // 1. Mostrar el toast de éxito
+        window.utils.showToast("¡Lista guardada en sugerencias! ✨", "exito");
+        
+        // 2. Ejecutar el renderizado de la columna de sugerencias sin recargar
+        if (typeof window.renderSuggestions === 'function') {
+            window.renderSuggestions();
+        }
+    };
 
-        container.appendChild(listDiv);
-        if (listData.tasks) listData.tasks.forEach(t => this.addTask(listDiv, t));
-        window.utils.initLucideIcons();
-        return listDiv;
-    },
+    listDiv.querySelector('.delete-list-btn').onclick = () => {
+        listDiv.remove();
+        window.StorageService.saveActiveListsFromDOM(container);
+        window.utils.showToast("Lista eliminada", "info");
+    };
 
-    addTask: function(listDiv, taskData) {
+    listDiv.querySelector('.add-task-btn').onclick = () => {
+        const taskText = inputRef.value.trim();
+        if (!taskText) {
+            // CORRECCIÓN: Usar tipo 'advertencia' para errores de validación
+            window.utils.showToast('No se pueden crear tareas vacías', 'advertencia');
+            return;
+        }
+        this.addTask(listDiv, { text: taskText, status: 'Pendiente', subtasks: [] });
+        inputRef.value = '';
+        window.StorageService.saveActiveListsFromDOM(container);
+    };
+
+    // Drag & Drop for columns
+    listDiv.querySelectorAll('.task-column ul').forEach(ul => {
+        ul.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            ul.classList.add('drag-over');
+        });
+        ul.addEventListener('dragleave', () => ul.classList.remove('drag-over'));
+        ul.addEventListener('drop', (e) => {
+            e.preventDefault();
+            ul.classList.remove('drag-over');
+            if (window.draggedTask) {
+                const targetColumn = ul.closest('.task-column');
+                const targetStatus = targetColumn.dataset.status;
+                const statusSelect = window.draggedTask.querySelector('.status-select');
+                statusSelect.value = targetStatus;
+                statusSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        });
+    });
+
+    container.appendChild(listDiv);
+    if (listData.tasks) listData.tasks.forEach(t => this.addTask(listDiv, t));
+    window.utils.initLucideIcons();
+    return listDiv;
+},
+
+    addTask: function (listDiv, taskData) {
         const validText = this.validateTaskText(taskData.text);
         if (!validText) return;  // Bloquea tareas vacías post-trim
-        
+
         const targetCol = listDiv.querySelector(`.task-column[data-status="${taskData.status || 'Pendiente'}"] ul`);
         const taskLi = document.createElement('li');
         taskLi.className = 'task-item';
@@ -419,12 +440,12 @@ addSubtask: function(taskLi, sub, subInput) {
 
         // Build task structure with createElement + fragment (secure)
         const taskFragment = document.createDocumentFragment();
-        
+
         // task-main div
         const taskMain = document.createElement('div');
         taskMain.className = 'task-main';
         taskMain.style.cssText = 'display:flex; align-items:center; gap:10px;';
-        
+
         // task-text span
         const taskText = document.createElement('span');
         taskText.className = 'task-text';
@@ -434,7 +455,7 @@ addSubtask: function(taskLi, sub, subInput) {
         taskText.dataset.originalText = validText;
         taskText.addEventListener('blur', () => this.handleInlineEdit(taskText));
         taskMain.appendChild(taskText);
-        
+
         // status-select
         const statusSelect = document.createElement('select');
         statusSelect.className = 'status-select';
@@ -450,7 +471,7 @@ addSubtask: function(taskLi, sub, subInput) {
         statusSelect.appendChild(optPending);
         statusSelect.appendChild(optDone);
         taskMain.appendChild(statusSelect);
-        
+
         // edit button
         const editBtn = document.createElement('button');
         editBtn.className = 'task-edit-btn';
@@ -461,7 +482,7 @@ addSubtask: function(taskLi, sub, subInput) {
         iEdit.style.cssText = 'width:16px;';
         editBtn.appendChild(iEdit);
         taskMain.appendChild(editBtn);
-        
+
         // focus button
         const focusBtn = document.createElement('button');
         focusBtn.className = 'focus-btn';
@@ -472,7 +493,7 @@ addSubtask: function(taskLi, sub, subInput) {
         iFocus.style.cssText = 'width:16px;';
         focusBtn.appendChild(iFocus);
         taskMain.appendChild(focusBtn);
-        
+
         // delete button
         const deleteBtnTask = document.createElement('button');
         deleteBtnTask.className = 'delete-task-btn';
@@ -482,39 +503,39 @@ addSubtask: function(taskLi, sub, subInput) {
         iDelete.dataset.lucide = 'x';
         deleteBtnTask.appendChild(iDelete);
         taskMain.appendChild(deleteBtnTask);
-        
+
         taskFragment.appendChild(taskMain);
-        
+
         // moodboard-container
         const moodboard = document.createElement('div');
         moodboard.className = 'moodboard-container';
         moodboard.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;';
         taskFragment.appendChild(moodboard);
-        
+
         // subtask-list ul
         const subtaskList = document.createElement('ul');
         subtaskList.className = 'subtask-list';
         subtaskList.style.cssText = 'list-style:none; padding-left:15px; margin-top:10px;';
         taskFragment.appendChild(subtaskList);
-        
+
         // subtask-controls div
         const subControls = document.createElement('div');
         subControls.className = 'subtask-controls';
         subControls.style.cssText = 'display:flex; gap:5px; margin-top:10px;';
-        
+
         const subInput = document.createElement('input');
         subInput.type = 'text';
         subInput.placeholder = 'Subtarea...';
         subInput.className = 'sub-input';
         subInput.style.cssText = 'font-size:0.8rem; flex-grow:1; flex-basis:0;';
         subControls.appendChild(subInput);
-        
+
         const addSubBtn = document.createElement('button');
         addSubBtn.className = 'add-sub-btn';
         addSubBtn.setAttribute('aria-label', 'Agregar subtarea');
         addSubBtn.textContent = '+';
         subControls.appendChild(addSubBtn);
-        
+
         const imageBtn = document.createElement('button');
         imageBtn.className = 'add-image-btn';
         imageBtn.setAttribute('aria-label', 'Agregar imagen local');
@@ -523,10 +544,10 @@ addSubtask: function(taskLi, sub, subInput) {
         imageBtn.onclick = () => this.addLocalImage(taskLi);
         subControls.appendChild(imageBtn);
         taskFragment.appendChild(subControls);
-        
+
         taskLi.appendChild(taskFragment);
 
-// Task-level event delegation (subtask-safe)
+        // Task-level event delegation (subtask-safe)
         statusSelect.addEventListener('change', () => this.updateTaskStatus(taskLi));
         subControls.addEventListener('click', (e) => {
             if (e.target.classList.contains('add-sub-btn')) {
@@ -539,7 +560,7 @@ addSubtask: function(taskLi, sub, subInput) {
                 this.addSubtask(taskLi, null, subInput);
             }
         });
-        
+
         // Task buttons
         editBtn.addEventListener('click', () => {
             const subtasks = Array.from(subtaskList.querySelectorAll('.subtask-item')).map(s => ({
@@ -557,21 +578,21 @@ addSubtask: function(taskLi, sub, subInput) {
         });
 
         focusBtn.addEventListener('click', () => {
-            const data = { 
-                text: taskText.textContent, 
+            const data = {
+                text: taskText.textContent,
                 subtasks: Array.from(subtaskList.querySelectorAll('.subtask-item:not(.visual-hidden-sub)')).map(s => ({
-                    text: s.querySelector('span').textContent, 
-                    completed: s.querySelector('input').checked 
-                })) 
+                    text: s.querySelector('span').textContent,
+                    completed: s.querySelector('input').checked
+                }))
             };
             window.utils.showTimePickerModal((mins) => {
                 window.utils.showFocusModal(data, mins, window.utils.hideFocusModal);
             });
         });
 
-        deleteBtnTask.addEventListener('click', () => { 
-            taskLi.remove(); 
-            window.StorageService.saveActiveListsFromDOM(document.getElementById('lists-container')); 
+        deleteBtnTask.addEventListener('click', () => {
+            taskLi.remove();
+            window.StorageService.saveActiveListsFromDOM(document.getElementById('lists-container'));
         });
 
         // CRITICAL: Subtask delegation on taskLi
@@ -580,7 +601,7 @@ addSubtask: function(taskLi, sub, subInput) {
                 this.updateTaskStatus(taskLi);
             }
         });
-        
+
         taskLi.addEventListener('click', (e) => {
             if (e.target.matches('.delete-sub-btn')) {
                 e.target.closest('.subtask-item').remove();

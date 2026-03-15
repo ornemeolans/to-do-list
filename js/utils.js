@@ -1,86 +1,97 @@
 window.utils = {
-    showToast: (msg) => {
-        const toast = document.createElement('div');
-        toast.style.cssText = `position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--accent-blue); color:white; padding:12px 25px; border-radius:20px; z-index:10005; font-weight:500; box-shadow:var(--shadow);`;
-        toast.textContent = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2500);
-    },
+showToast: (msg, type = 'info') => {
+    // Eliminar toasts anteriores si existen para no saturar la pantalla
+    const existingToasts = document.querySelectorAll('.toast-container');
+    existingToasts.forEach(t => t.remove());
 
-showModal: (title, fields, onConfirm) => {
-    const modal = document.getElementById('template-modal');
+    const toast = document.createElement('div');
+    // Se asigna la clase base y la clase específica por tipo
+    toast.className = `toast toast-${type}`; 
+    toast.textContent = msg;
     
-    // Clear and build secure DOM tree
-    modal.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-    
-    // overlay
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(5px);';
-    
-    // content
-    const content = document.createElement('div');
-    content.className = 'modal-content';
-    content.style.cssText = 'background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:24px;padding:30px;width:90%;max-width:400px;';
-    
-    // title h3
-    const h3 = document.createElement('h3');
-    h3.style.cssText = 'color:var(--accent-blue);margin-bottom:20px;';
-    h3.textContent = title;
-    content.appendChild(h3);
-    
-    // fields
-    fields.forEach(f => {
-        const fieldDiv = document.createElement('div');
-        fieldDiv.style.cssText = 'margin-bottom:15px;';
-        
-        const label = document.createElement('label');
-        label.style.cssText = 'display:block;font-size:0.9rem;margin-bottom:5px;';
-        label.textContent = f.label;
-        fieldDiv.appendChild(label);
-        
-        const input = document.createElement('input');
-        input.type = f.type || 'text';
-        input.dataset.var = f.var;
-        input.style.cssText = 'width:100%;padding:10px;border-radius:10px;border:1px solid var(--glass-border);';
-        fieldDiv.appendChild(input);
-        
-        content.appendChild(fieldDiv);
-    });
-    
-    // buttons
-    const btnDiv = document.createElement('div');
-    btnDiv.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
-    
-    const cancelBtn = document.createElement('button');
-    cancelBtn.id = 'modal-cancel';
-    cancelBtn.style.cssText = 'background:#eee;color:#333;border:none;padding:10px;border-radius:10px;cursor:pointer;';
-    cancelBtn.textContent = 'Cancelar';
-    const confirmBtn = document.createElement('button');
-    confirmBtn.id = 'modal-confirm';
-    confirmBtn.style.cssText = 'background:var(--accent-blue);color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;';
-    confirmBtn.textContent = 'Confirmar';
-    
-    btnDiv.appendChild(cancelBtn);
-    btnDiv.appendChild(confirmBtn);
-    content.appendChild(btnDiv);
-    
-    overlay.appendChild(content);
-    fragment.appendChild(overlay);
-    modal.appendChild(fragment);
-    
-    modal.style.display = 'block';
-    
-    // Events (use event delegation for dynamic fields)
-    cancelBtn.onclick = () => modal.style.display = 'none';
-    confirmBtn.onclick = () => {
-        const vals = {};
-        content.querySelectorAll('input').forEach(i => vals[i.dataset.var] = i.value);
-        onConfirm(vals);
-        modal.style.display = 'none';
-    };
+    document.body.appendChild(toast);
+
+    // Animación de salida y remoción
+    setTimeout(() => {
+        toast.classList.add('toast-hide');
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
 },
+
+    showModal: (title, fields, onConfirm) => {
+        const modal = document.getElementById('template-modal');
+        
+        // Clear and build secure DOM tree
+        modal.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        
+        // overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10001;backdrop-filter:blur(5px);';
+        
+        // content
+        const content = document.createElement('div');
+        content.className = 'modal-content';
+        content.style.cssText = 'background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:24px;padding:30px;width:90%;max-width:400px;';
+        
+        // title h3
+        const h3 = document.createElement('h3');
+        h3.style.cssText = 'color:var(--accent-blue);margin-bottom:20px;';
+        h3.textContent = title;
+        content.appendChild(h3);
+        
+        // fields
+        fields.forEach(f => {
+            const fieldDiv = document.createElement('div');
+            fieldDiv.style.cssText = 'margin-bottom:15px;';
+            
+            const label = document.createElement('label');
+            label.style.cssText = 'display:block;font-size:0.9rem;margin-bottom:5px;';
+            label.textContent = f.label;
+            fieldDiv.appendChild(label);
+            
+            const input = document.createElement('input');
+            input.type = f.type || 'text';
+            input.dataset.var = f.var;
+            input.style.cssText = 'width:100%;padding:10px;border-radius:10px;border:1px solid var(--glass-border);';
+            fieldDiv.appendChild(input);
+            
+            content.appendChild(fieldDiv);
+        });
+        
+        // buttons
+        const btnDiv = document.createElement('div');
+        btnDiv.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'modal-cancel';
+        cancelBtn.style.cssText = 'background:#eee;color:#333;border:none;padding:10px;border-radius:10px;cursor:pointer;';
+        cancelBtn.textContent = 'Cancelar';
+        const confirmBtn = document.createElement('button');
+        confirmBtn.id = 'modal-confirm';
+        confirmBtn.style.cssText = 'background:var(--accent-blue);color:white;border:none;padding:10px;border-radius:10px;cursor:pointer;';
+        confirmBtn.textContent = 'Confirmar';
+        
+        btnDiv.appendChild(cancelBtn);
+        btnDiv.appendChild(confirmBtn);
+        content.appendChild(btnDiv);
+        
+        overlay.appendChild(content);
+        fragment.appendChild(overlay);
+        modal.appendChild(fragment);
+        
+        modal.style.display = 'block';
+        
+        // Events (use event delegation for dynamic fields)
+        cancelBtn.onclick = () => modal.style.display = 'none';
+        confirmBtn.onclick = () => {
+            const vals = {};
+            content.querySelectorAll('input').forEach(i => vals[i.dataset.var] = i.value);
+            onConfirm(vals);
+            modal.style.display = 'none';
+        };
+    },
 
     showTimePickerModal: (onSelect) => {
         const modal = document.getElementById('template-modal');
