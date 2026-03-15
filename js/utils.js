@@ -272,6 +272,10 @@ showToast: (msg, type = 'info') => {
     },
 
     hideFocusModal: () => {
+        if (window.currentFocusTimer) {
+            clearInterval(window.currentFocusTimer);
+            window.currentFocusTimer = null;
+        }
         document.getElementById('focus-overlay').style.display = 'none';
         document.body.classList.remove('focus-active');
     },
