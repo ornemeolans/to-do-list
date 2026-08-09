@@ -1,29 +1,105 @@
-window.StateManager = {
+// StateManager: ÚNICA fuente de verdad del estado de la app.
+// Todo lo que se ve en pantalla (listas, tareas, subtareas, imágenes del
+// moodboard) vive acá, en `activeLists`. Nada se guarda "solo en el DOM":
+// así se evita el bug de la versión anterior donde subtareas y cambios de
+// estado se perdían al re-renderizar porque solo existían en dataset attrs.
+//
+// StateManager no sabe nada de DOM. Cuando algo cambia, llama a `onChange`
+// (inyectado desde main.js) para que la capa de render se entere. Así se
+// evita un import circular con TaskService.
+import { StorageService } from './StorageService.js';
+
+export const StateManager = {
     activeLists: [],
-    nextId: 1,  // Fallback counter if crypto unavailable
-    
-    generateId: function() {
-        if (crypto && crypto.randomUUID) {
+    nextId: 1, // Fallback si crypto.randomUUID no está disponible
+    onChange: null, // callback(activeLists) — lo setea main.js
+
+    generateId() {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID();
         }
-        return `id_${this.nextId++}`;
+        return `id_${Date.now()}_${this.nextId++}`;
     },
-    
-    addList: function(name) {
-        const list = {
-            id: this.generateId(),
-            name: name,
-            tasks: []
-        };
+
+    _notify() {
+        StorageService.saveActiveLists(this.activeLists);
+        if (typeof this.onChange === 'function') this.onChange(this.activeLists);
+    },
+
+    getList(listId) {
+        return this.activeLists.find(l => l.id === listId) || null;
+    },
+
+    getTask(listId, taskId) {
+        const list = this.getList(listId);
+        if (!list) return null;
+        return list.tasks.find(t => t.id === taskId) || null;
+    },
+
+    async load() {
+        try {
+            this.activeLists = await StorageService.loadActiveLists() || [];
+        } catch (e) {
+            console.error('Load failed:', e);
+            this.activeLists = [];
+        }
+    },
+
+    // Guardado inmediato (sin debounce) — útil antes de una acción irreversible
+    // como cerrar un modal de edición.
+    save() {
+        StorageService.saveActiveListsNow(this.activeLists);
+    },
+
+    // --- Listas ---
+
+    addList(name) {
+        const list = { id: this.generateId(), name, tasks: [] };
         this.activeLists.push(list);
-        this.renderAll();
+        this._notify();
         return list.id;
     },
-    
-    addTask: function(listId, taskData) {
-        const list = this.activeLists.find(l => l.id === listId);
+
+    // Crea una lista ya con tareas (usado por plantillas/sugerencias).
+    // La versión anterior perdía las tareas de la plantilla porque `addList`
+    // solo aceptaba el nombre.
+    addListWithTasks(listData) {
+        const list = {
+            id: this.generateId(),
+            name: listData.name,
+            tasks: (listData.tasks || []).map(t => ({
+                id: this.generateId(),
+                text: t.text,
+                status: t.status || 'Pendiente',
+                subtasks: (t.subtasks || []).map(s => ({
+                    text: s.text,
+                    completed: s.completed || false,
+                    isVisual: s.isVisual || false
+                }))
+            }))
+        };
+        this.activeLists.push(list);
+        this._notify();
+        return list.id;
+    },
+
+    updateListName(listId, name) {
+        const list = this.getList(listId);
+        if (!list) return;
+        list.name = name;
+        this._notify();
+    },
+
+    deleteList(listId) {
+        this.activeLists = this.activeLists.filter(l => l.id !== listId);
+        this._notify();
+    },
+
+    // --- Tareas ---
+
+    addTask(listId, taskData) {
+        const list = this.getList(listId);
         if (!list) return null;
-        
         const task = {
             id: this.generateId(),
             text: taskData.text || 'Nueva tarea',
@@ -31,88 +107,79 @@ window.StateManager = {
             subtasks: taskData.subtasks || []
         };
         list.tasks.push(task);
-        this.renderAll();
-        window.StorageService.saveActiveLists(this.activeLists);
+        this._notify();
         return task.id;
     },
-    
-    updateTask: function(listId, taskId, updates) {
-        const list = this.activeLists.find(l => l.id === listId);
-        if (!list) return;
-        
-        const task = list.tasks.find(t => t.id === taskId);
-        if (task) {
-            Object.assign(task, updates);
-            this.renderAll();
-            window.StorageService.saveActiveLists(this.activeLists);
-        }
+
+    updateTask(listId, taskId, updates) {
+        const task = this.getTask(listId, taskId);
+        if (!task) return;
+        Object.assign(task, updates);
+        this._notify();
     },
-    
-    deleteTask: function(listId, taskId) {
-        const list = this.activeLists.find(l => l.id === listId);
+
+    // Cambia el status de una tarea (por drag&drop o por el <select>) y,
+    // si el cambio es manual, sincroniza el estado "completed" de las
+    // subtareas de texto (igual que hacía la versión anterior).
+    setTaskStatus(listId, taskId, status, syncSubtasks = true) {
+        const task = this.getTask(listId, taskId);
+        if (!task) return;
+        task.status = status;
+        if (syncSubtasks) {
+            task.subtasks.forEach(sub => {
+                if (!sub.isVisual) sub.completed = (status === 'Realizada');
+            });
+        }
+        this._notify();
+    },
+
+    deleteTask(listId, taskId) {
+        const list = this.getList(listId);
         if (!list) return;
-        
         list.tasks = list.tasks.filter(t => t.id !== taskId);
-        this.renderAll();
-        window.StorageService.saveActiveLists(this.activeLists);
+        this._notify();
     },
-    
-    updateListName: function(listId, name) {
-        const list = this.activeLists.find(l => l.id === listId);
-        if (list) {
-            list.name = name;
-            this.renderAll();
-            window.StorageService.saveActiveLists(this.activeLists);
-        }
-    },
-    
-    deleteList: function(listId) {
-        this.activeLists = this.activeLists.filter(l => l.id !== listId);
-        this.renderAll();
-        window.StorageService.saveActiveLists(this.activeLists);
-    },
-    
-    // Undo stack for UX
-    undoStack: [],
-    pushUndo: function(action, data) {
-        this.undoStack.push({action, data, timestamp: Date.now()});
-        if (this.undoStack.length > 10) this.undoStack.shift();
-    },
-    
-    undo: function() {
-        const last = this.undoStack.pop();
-        if (!last) return;
-        // Revert logic based on action type
-        // Simplified: reload from storage
-        this.load();
-    },
-    
-    load: async function() {
-        try {
-            this.activeLists = await window.StorageService.loadActiveLists() || [];
-        } catch (e) {
-            console.error('Load failed:', e);
-            this.activeLists = [];
-        }
-    },
-    
-    save: function() {
-        window.StorageService.saveActiveLists(this.activeLists);
-    },
-    
-    renderAll: function() {
-        const container = document.getElementById('lists-container');
-        if (!container) return;
-        
-        // Ensure activeLists is array
-        if (!Array.isArray(this.activeLists)) {
-            console.warn('activeLists is not array:', this.activeLists);
-            this.activeLists = [];
-        }
-        
-        container.innerHTML = '';
-        this.activeLists.forEach(list => {
-            window.TaskService.createNewList(list, container, list.id);
+
+    // --- Subtareas (antes vivían solo en dataset.subtasks del DOM) ---
+
+    addSubtask(listId, taskId, subtaskData) {
+        const task = this.getTask(listId, taskId);
+        if (!task) return;
+        task.subtasks.push({
+            text: subtaskData.text,
+            completed: false,
+            isVisual: !!subtaskData.isVisual
         });
+        this._syncTaskStatusFromSubtasks(task);
+        this._notify();
+    },
+
+    updateSubtask(listId, taskId, index, updates) {
+        const task = this.getTask(listId, taskId);
+        if (!task || !task.subtasks[index]) return;
+        Object.assign(task.subtasks[index], updates);
+        this._syncTaskStatusFromSubtasks(task);
+        this._notify();
+    },
+
+    deleteSubtask(listId, taskId, index) {
+        const task = this.getTask(listId, taskId);
+        if (!task) return;
+        task.subtasks.splice(index, 1);
+        this._syncTaskStatusFromSubtasks(task);
+        this._notify();
+    },
+
+    // Si todas las subtareas de texto están completas, la tarea pasa a
+    // "Realizada" automáticamente (mismo comportamiento que la v. anterior).
+    _syncTaskStatusFromSubtasks(task) {
+        const textSubtasks = task.subtasks.filter(s => !s.isVisual);
+        const allDone = textSubtasks.length > 0 && textSubtasks.every(s => s.completed);
+        task.status = allDone ? 'Realizada' : 'Pendiente';
+    },
+
+    replaceAll(activeLists) {
+        this.activeLists = Array.isArray(activeLists) ? activeLists : [];
+        this._notify();
     }
 };

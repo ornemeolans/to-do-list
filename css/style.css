@@ -1,35 +1,92 @@
-/* Aesthetic Full Redesign */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* ============================================================
+   Dirección visual: paleta "Lavanda / Provenza" (palettepoint.com)
+   Rustic Red, Crown of Thorns, Pebble Walk, Glamorous y Mid Grey.
+   Se mantiene la estructura editorial (tipografía Fraunces + Inter,
+   escala de radios, marca de "tarea completada" a mano alzada) que
+   ya tenía el proyecto — lo que cambia acá es únicamente la paleta
+   de colores, tomada de la imagen que pasaste.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.4);
-    --text-main: #2d3436;
-    --accent-blue: #6c5ce7;
-    --accent-red: #ff7675;
-    --accent-green: #00b894;
-    --accent-yellow: #ffd93d;
-    --accent-blue: #6c5ce7;
-    --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    /* Paleta — palettepoint.com, campo de lavanda (Provenza).
+       5 colores base: Rustic Red, Crown of Thorns, Pebble Walk,
+       Glamorous, Mid Grey. El resto de los tonos (superficies, bordes,
+       variantes claras/oscuras) son tints/shades derivados de estos 5,
+       no colores nuevos. */
+    --rustic-red: #35161c;
+    --crown-of-thorns: #783e33;
+    --pebble-walk: #afb3a8;
+    --glamorous: #b75362;
+    --mid-grey: #5f5f6c;
+
+    --bg: #dbddd8;
+    --bg-top: #e5e7e3;
+    --surface: rgba(241, 241, 239, 0.82);
+    --surface-solid: #f1f1ef;
+    --line: rgba(53, 22, 28, 0.16);
+    --text-main: var(--rustic-red);
+    --text-muted: var(--mid-grey);
+
+    --accent: var(--glamorous);          /* color de marca — botones, foco, links */
+    --accent-contrast: #fff8ef;
+    --accent-success: var(--mid-grey);    /* "Realizada": no hay verde en la paleta, se usa gris apagado (como Things 3) */
+    --accent-danger: var(--crown-of-thorns); /* borrar / eliminar */
+    --accent-warning: #d08f99;            /* tint de Glamorous — no hay ámbar en la paleta */
+
+    --radius-xs: 6px;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+
+    --shadow: 0 10px 34px 0 rgba(53, 22, 28, 0.16);
+
+    /* Compat: nombres viejos usados en algunas reglas heredadas */
+    --glass-bg: var(--surface);
+    --glass-border: var(--line);
+    --accent-blue: var(--accent);
+    --accent-red: var(--accent-danger);
+    --accent-green: var(--accent-success);
+    --accent-yellow: var(--accent-warning);
 }
 
 [data-theme="dark"] {
-    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    --glass-bg: rgba(30, 41, 59, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.05);
-    --text-main: #f8fafc;
+    /* Misma paleta, ahora con Rustic Red como base oscura -es
+       prácticamente negro ya de por sí- y Glamorous/Crown of Thorns
+       aclarados un poco para que tengan contraste sobre el fondo. */
+    --bg: #32151b;
+    --bg-top: #462022;
+    --surface: rgba(83, 40, 38, 0.78);
+    --surface-solid: #532826;
+    --line: rgba(175, 179, 168, 0.16);
+    --text-main: #f3f4f2;
+    --text-muted: var(--pebble-walk);
+
+    --accent: #c06875;
+    --accent-contrast: #2a1015;
+    --accent-success: #8f8f98;
+    --accent-danger: #8c5b52;
+    --accent-warning: #d59ba4;
+
+    --shadow: 0 10px 34px 0 rgba(0, 0, 0, 0.45);
 }
 
+* { box-sizing: border-box; }
+
 body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg-gradient);
+    font-family: var(--font-body);
+    background: radial-gradient(ellipse 1400px 700px at 50% -10%, var(--bg-top) 0%, var(--bg) 62%);
     background-attachment: fixed;
     color: var(--text-main);
     margin: 0;
     min-height: 100vh;
     padding: 20px;
-    transition: all 0.3s ease;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
@@ -38,44 +95,59 @@ body {
     display: grid;
     grid-template-columns: 280px 1fr;
     gap: 30px;
-    background: var(--glass-bg);
+    background: var(--surface);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 30px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
     padding: 30px;
     box-shadow: var(--shadow);
 }
 
-/* Sidebar Sugerencias */
-.suggestions-column h2 {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--accent-blue);
-    margin-bottom: 20px;
+/* Sidebar Sugerencias — <details> nativo: en mobile es colapsable sin JS,
+   en desktop se fuerza siempre visible (ver bloque responsive al final). */
+.suggestions-column {
+    border: none;
 }
+
+.suggestions-column summary {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 20px;
+    cursor: default;
+    list-style: none;
+}
+
+.suggestions-column summary::-webkit-details-marker { display: none; }
 
 #suggestions-list {
     list-style: none;
     padding: 0;
+    margin: 0;
 }
 
 #suggestions-list li {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--surface-solid);
     margin-bottom: 10px;
     padding: 12px 15px;
-    border-radius: 15px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: 0.2s;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--line);
+    font-size: 0.92rem;
 }
 
 #suggestions-list li:hover {
-    background: var(--accent-blue);
-    color: white;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-contrast);
     transform: translateX(5px);
 }
 
@@ -87,75 +159,91 @@ body {
     margin-bottom: 30px;
 }
 
+.header-main h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 2.1rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+}
+
 .task-list {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
     padding: 25px;
     margin-bottom: 30px;
     box-shadow: var(--shadow);
 }
 
+.task-list h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.3rem;
+    margin: 0 0 15px;
+}
+
 .task-list h3[contenteditable="true"] {
     outline: none;
     padding: 5px;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     transition: 0.2s;
 }
 
 .task-list h3:focus {
-    background: rgba(108, 92, 231, 0.1);
+    background: rgba(183, 83, 98, 0.08);
 }
 
 /* Inputs y Botones */
 input[type="text"] {
-    background: rgba(255, 255, 255, 0.5);
-    border: 1px solid var(--glass-border);
+    background: var(--surface-solid);
+    border: 1px solid var(--line);
     padding: 12px 18px;
-    border-radius: 12px;
+    border-radius: var(--radius-sm);
     font-family: inherit;
+    color: var(--text-main);
     outline: none;
     transition: 0.2s;
 }
 
 input:focus {
-    border-color: var(--accent-blue);
-    background: white;
+    border-color: var(--accent);
+    background: var(--accent-contrast);
 }
 
 button {
-    background: var(--accent-blue);
-    color: white;
+    background: var(--accent);
+    color: var(--accent-contrast);
     border: none;
-    padding: 10px 10px;
-    border-radius: 10px;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
     font-weight: 600;
     cursor: pointer;
     transition: 0.2s;
 }
 
 button:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.08);
     transform: translateY(-2px);
 }
 
 /* Items de Tarea */
 .task-item {
-    background: white;
-    border-radius: 18px;
+    background: var(--surface-solid);
+    border-radius: var(--radius-md);
     padding: 18px;
     margin-bottom: 15px;
     list-style: none;
-    border: 1px solid var(--glass-border);
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 6px rgba(28, 20, 10, 0.03);
     pointer-events: auto !important;
+    position: relative;
 }
 
 .task-item * {
     pointer-events: auto !important;
 }
-
-[data-theme="dark"] .task-item { background: #1e293b; }
 
 .task-main {
     display: flex;
@@ -167,24 +255,60 @@ button:hover {
 .visual-preview {
     flex-shrink: 0;
     transition: transform 0.2s ease;
-    box-shadow: 0.2s ease;
 }
 
 .visual-preview:hover {
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(28, 20, 10, 0.15);
 }
 
-.task-text { 
-    font-weight: 500; 
-    flex-grow: 1; 
+.task-text {
+    font-weight: 500;
+    flex-grow: 1;
+}
+
+/* Marca "grease pencil": cuando una tarea pasa a Realizada, se dibuja un
+   óvalo irregular a mano alzada alrededor del texto -como en una hoja de
+   contacto donde el fotógrafo marca sus selects-. Es el elemento de firma
+   del proyecto. */
+.task-item.is-done .task-text {
+    position: relative;
+}
+
+.done-mark {
+    position: absolute;
+    left: -10px;
+    right: -10px;
+    top: -8px;
+    bottom: -8px;
+    width: calc(100% + 20px);
+    height: calc(100% + 16px);
+    overflow: visible;
+    pointer-events: none;
+}
+
+.done-mark path {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    pathLength: 1;
+    opacity: 0.85;
+    animation: draw-mark 0.55s ease forwards;
+}
+
+@keyframes draw-mark {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
 }
 
 .task-edit-btn, .focus-btn, .delete-task-btn {
     background: none;
     border: none;
     padding: 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -192,37 +316,31 @@ button:hover {
     justify-content: center;
 }
 
-.task-edit-btn {
-    color: var(--accent-blue);
+.task-edit-btn, .focus-btn {
+    color: var(--accent);
 }
 
-.task-edit-btn:hover {
-    background: rgba(108, 92, 231, 0.1);
+.task-edit-btn:hover, .focus-btn:hover {
+    background: rgba(183, 83, 98, 0.1);
     transform: scale(1.05);
 }
 
-.focus-btn {
-    color: var(--accent-blue);
-}
-
-.focus-btn:hover {
-    background: rgba(108, 92, 231, 0.1);
-}
-
 .delete-task-btn {
-    color: var(--accent-red);
+    color: var(--accent-danger);
 }
 
 .delete-task-btn:hover {
-    background: rgba(255, 118, 117, 0.1);
+    background: rgba(179, 38, 30, 0.1);
 }
 
 .status-select {
     padding: 5px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--glass-border);
-    background: rgba(255,255,255,0.5);
-    font-size: 0.8rem;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--line);
+    background: var(--surface-solid);
+    color: var(--text-main);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
@@ -236,7 +354,7 @@ button:hover {
     opacity: 0.85;
     transform: rotate(2deg) scale(1.02);
     z-index: 100;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    box-shadow: 0 10px 30px rgba(28, 20, 10, 0.2);
 }
 
 .task-column ul {
@@ -245,16 +363,24 @@ button:hover {
 }
 
 .task-column ul.drag-over {
-    background: rgba(108, 92, 231, 0.15) !important;
-    border: 2px dashed var(--accent-blue);
-    border-radius: 12px;
+    background: rgba(183, 83, 98, 0.1) !important;
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-sm);
     padding: 10px;
 }
 
-[data-theme="dark"] .status-select {
-    background: rgba(255,255,255,0.1);
+/* Estado vacío por columna */
+.empty-column-hint {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-sm);
+    padding: 14px 12px;
+    text-align: center;
+    list-style: none;
 }
-
 
 /* Subtareas */
 .subtask-list {
@@ -268,7 +394,7 @@ button:hover {
     gap: 8px;
     font-size: 0.9rem;
     margin-bottom: 5px;
-    color: #636e72;
+    color: var(--text-muted);
     flex-wrap: wrap;
     pointer-events: auto;
 }
@@ -277,21 +403,16 @@ button:hover {
     pointer-events: auto !important;
     cursor: pointer !important;
     position: relative;
-    z-index: 10; /* Asegura que esté por encima de la capa de arrastre */
-}
-
-.subtask-item, .subtask-item * {
-    pointer-events: auto !important;
-}
-
-.subtask-item input[type="checkbox"] {
-    pointer-events: auto !important;
-    cursor: pointer !important;
     width: 18px !important;
     height: 18px !important;
     flex-shrink: 0 !important;
     margin-right: 8px !important;
-    z-index: 10 !important;
+    accent-color: var(--accent);
+    z-index: 10;
+}
+
+.subtask-item, .subtask-item * {
+    pointer-events: auto !important;
 }
 
 .subtask-item {
@@ -301,9 +422,6 @@ button:hover {
 .subtask-preview {
     flex-shrink: 0 !important;
 }
-
-
-[data-theme="dark"] .subtask-item { color: #94a3b8; }
 
 /* Modal Styles */
 #template-modal .modal-overlay {
@@ -323,7 +441,7 @@ button:hover {
 
 #template-modal input:focus {
     transform: scale(1.02);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, .1);
+    box-shadow: 0 0 0 3px rgba(183, 83, 98, .12);
 }
 
 @keyframes fadeIn {
@@ -336,7 +454,7 @@ button:hover {
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* --- NUEVAS REGLAS: MODO ENFOQUE & TIME-BOXING --- */
+/* --- MODO ENFOQUE & TIME-BOXING --- */
 
 .focus-active .app-container {
     filter: blur(15px);
@@ -345,129 +463,104 @@ button:hover {
 }
 
 #focus-overlay {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
     height: 100vh;
-    z-index: 10000; 
-    display: none; 
-    align-items: center; 
+    z-index: 10000;
+    display: none;
+    align-items: center;
     justify-content: center;
 }
 
 .focus-panel {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    padding: 40px; 
-    border-radius: 40px; 
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 40px;
+    border-radius: var(--radius-xl);
     box-shadow: var(--shadow);
-    text-align: center; 
-    width: 90%; 
+    text-align: center;
+    width: 90%;
     max-width: 450px;
     animation: modalPop .4s ease;
     backdrop-filter: blur(20px);
 }
 
-.pomodoro-container { 
-    position: relative; 
-    width: 200px; 
-    margin: 20px auto; 
+.pomodoro-container {
+    position: relative;
+    width: 200px;
+    margin: 20px auto;
 }
 
-#timer-svg { 
-    transform: rotate(-90deg); 
-    width: 200px; 
-    height: 200px; 
+#timer-svg {
+    transform: rotate(-90deg);
+    width: 200px;
+    height: 200px;
 }
 
-.timer-circle-bg { 
-    fill: none; 
-    stroke: rgba(0,0,0,.05); 
-    stroke-width: 8; 
+.timer-circle-bg {
+    fill: none;
+    stroke: rgba(28, 20, 10, .08);
+    stroke-width: 8;
 }
 
-.timer-circle-progress { 
-    fill: none; 
-    stroke-width: 8; 
-    stroke-linecap: round; 
-    transition: stroke-dashoffset 1s linear, stroke .5s ease; 
+[data-theme="dark"] .timer-circle-bg {
+    stroke: rgba(244, 239, 227, .08);
+}
+
+.timer-circle-progress {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s linear, stroke .5s ease;
 }
 
 .time-opt {
     transition: .2s;
+    font-family: var(--font-mono);
 }
 
 .time-opt:hover {
-    background: var(--accent-blue) !important;
-    color: white !important;
+    background: var(--accent) !important;
+    color: var(--accent-contrast) !important;
     transform: scale(1.05);
 }
 
-@keyframes modalPop { 
-    from { transform: scale(.9); opacity: 0; } 
-    to { transform: scale(1); opacity: 1; } 
-}
-
-/* Responsive */
-@media (max-width: 900px) {
-    .app-container { grid-template-columns: 1fr; }
-    .suggestions-column { display: none; }
+@keyframes modalPop {
+    from { transform: scale(.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 /* Moodboard Styles */
 .mood-item:hover {
     transform: scale(1.15);
     z-index: 10;
-    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    box-shadow: 0 8px 20px rgba(28, 20, 10, .2);
 }
-
-.task-edit-btn, .focus-btn, .delete-task-btn {
-    background: none;
-    border: none;
-    padding: 6px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all .2s ease;
-    display: flex;
-    align-items: center;
-    color: var(--accent-blue);
-}
-
-.task-edit-btn:hover, .focus-btn:hover {
-    background: rgba(108, 92, 231, .1);
-}
-
-.delete-task-btn { color: var(--accent-red); }
-.delete-task-btn:hover { background: rgba(255, 118, 117, .1); }
 
 /* Scrollbar aesthetic para el modal */
 #edit-subtasks-list::-webkit-scrollbar { width: 5px; }
 #edit-subtasks-list::-webkit-scrollbar-track { background: transparent; }
-#edit-subtasks-list::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 10px; }
+#edit-subtasks-list::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 10px; }
 
 .delete-sub-btn {
     opacity: .5;
     transition: opacity .2s;
+    color: var(--text-muted);
 }
 
 .delete-sub-btn:hover {
     opacity: 1;
-    color: var(--accent-red) !important;
-}
-
-/* El resto de tus estilos de moodboard se mantienen igual */
-.mood-item:hover {
-    transform: scale(1.15);
-    z-index: 10;
-    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    color: var(--accent-danger) !important;
 }
 
 /* Estilos para el visor de imágenes/colores en grande */
 .visual-viewer-overlay {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(15, 10, 5, 0.85);
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
@@ -481,12 +574,11 @@ button:hover {
     animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-/* Botón de eliminar para los items del moodboard */
 /* Inline Editing Styles */
 .task-text[contenteditable="true"],
 .subtask-item span[contenteditable="true"] {
     outline: none;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     padding: 2px 6px;
     transition: all 0.2s ease;
     cursor: text;
@@ -496,20 +588,15 @@ button:hover {
 
 .task-text[contenteditable="true"]:focus,
 .subtask-item span[contenteditable="true"]:focus {
-    background: rgba(108, 92, 231, 0.15);
-    border: 2px solid var(--accent-blue);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+    background: rgba(183, 83, 98, 0.1);
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 3px rgba(183, 83, 98, 0.1);
     transform: scale(1.01);
-}
-
-[data-theme="dark"] .task-text[contenteditable="true"]:focus,
-[data-theme="dark"] .subtask-item span[contenteditable="true"]:focus {
-    background: rgba(108, 92, 231, 0.25);
 }
 
 .task-text[contenteditable="true"]:hover,
 .subtask-item span[contenteditable="true"]:hover {
-    background: rgba(108, 92, 231, 0.08);
+    background: rgba(183, 83, 98, 0.06);
 }
 
 /* Moodboard File Picker */
@@ -517,19 +604,13 @@ button:hover {
     position: relative;
 }
 
-.mood-item:hover {
-    transform: scale(1.15);
-    z-index: 10;
-    box-shadow: 0 8px 20px rgba(0,0,0,.2);
-}
-
 .mood-item::after {
     content: '🖼️';
     position: absolute;
     bottom: -8px;
     right: -8px;
-    background: var(--accent-blue);
-    color: white;
+    background: var(--accent);
+    color: var(--accent-contrast);
     border-radius: 50%;
     width: 20px;
     height: 20px;
@@ -550,7 +631,7 @@ input[type="file"] {
 }
 
 .add-image-btn:hover {
-    background: #5a4fcf !important;
+    filter: brightness(1.1);
     transform: scale(1.05);
 }
 
@@ -568,7 +649,7 @@ input[type="file"] {
     right: -8px;
     width: 20px;
     height: 20px;
-    background: var(--accent-red) !important;
+    background: var(--accent-danger) !important;
     color: white;
     border-radius: 50%;
     font-size: 10px;
@@ -576,7 +657,7 @@ input[type="file"] {
     align-items: center;
     justify-content: center;
     padding: 0;
-    border: 2px solid white;
+    border: 2px solid var(--accent-contrast);
     opacity: 0;
     transition: opacity 0.2s;
 }
@@ -593,20 +674,20 @@ input[type="file"] {
     transform: translateX(-50%);
     min-width: 300px;
     padding: 12px 25px;
-    border-radius: 20px;
+    border-radius: var(--radius-lg);
     z-index: 10005;
     font-weight: 500;
     text-align: center;
-    color: white;
+    color: var(--accent-contrast);
     box-shadow: var(--shadow);
     animation: toastSlideIn 0.3s ease;
     transition: all 0.3s ease;
 }
 
-.toast-exito { background-color: var(--accent-green); border: 2px solid #00a085; }
-.toast-error { background-color: var(--accent-red); border: 2px solid #e55a5a; }
-.toast-advertencia { background-color: var(--accent-yellow); color: #2d3436; border: 2px solid #f39c12; }
-.toast-info { background-color: var(--accent-blue); border: 2px solid #5a4fcf; }
+.toast-exito { background-color: var(--accent-success); border: 2px solid var(--accent-success); }
+.toast-error { background-color: var(--accent-danger); border: 2px solid var(--accent-danger); }
+.toast-advertencia { background-color: var(--accent-warning); color: #2b1d06; border: 2px solid var(--accent-warning); }
+.toast-info { background-color: var(--accent); border: 2px solid var(--accent); }
 
 .toast-hide { opacity: 0; transform: translateX(-50%) translateY(20px); }
 
@@ -615,16 +696,288 @@ input[type="file"] {
     to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+.toast-advertencia:hover {
+    cursor: pointer;
+}
+
 /* Focus-visible for A11y */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [contenteditable]:focus-visible {
-    outline: 3px solid var(--accent-blue);
+    outline: 3px solid var(--accent);
     outline-offset: 2px;
     border-radius: 6px;
 }
 
-.toast-advertencia:hover {
+/* ============================================================
+   Reglas agregadas al sacar los estilos inline del HTML/JS.
+   ============================================================ */
+
+.input-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.input-container #new-list-input {
+    flex-grow: 1;
+}
+
+.list-footer {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.task-columns {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.task-column {
+    flex: 1;
+}
+
+.task-column-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    opacity: 0.85;
+}
+
+.moodboard-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.sub-input {
+    font-size: 0.8rem;
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.add-image-btn {
+    padding: 8px;
+    border-radius: var(--radius-xs);
+    background: var(--accent);
+    color: var(--accent-contrast);
+    border: none;
     cursor: pointer;
+    font-size: 1rem;
+}
+
+.save-suggestion-btn { background: var(--accent-success); }
+.delete-list-btn { background: var(--accent-danger); }
+
+.task-edit-btn svg, .focus-btn svg, .delete-task-btn svg { width: 16px; height: 16px; }
+.delete-sub-btn svg { width: 12px; height: 12px; }
+
+.visually-hidden-file-input {
+    opacity: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    cursor: pointer;
+}
+
+.mood-item {
+    width: 45px;
+    height: 45px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    border: 2px solid var(--line);
+    background-size: cover;
+    background-position: center;
+}
+
+.viewer-content-color {
+    width: 300px;
+    height: 300px;
+    border-radius: var(--radius-lg);
+    border: 4px solid var(--accent-contrast);
+}
+
+.viewer-content-img {
+    max-width: 90%;
+    max-height: 80%;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+/* Modales (plantillas, edición de tarea, selector de tiempo) */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(15, 10, 5, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10001;
+}
+
+.modal-content {
+    background: var(--surface-solid);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 30px;
+    width: 90%;
+    max-width: 450px;
+}
+
+.modal-content-center { max-width: 350px; text-align: center; }
+.modal-content-wide { max-width: 450px; }
+
+.modal-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 20px;
+}
+
+.modal-field { margin-bottom: 15px; }
+.modal-field label { display: block; font-size: 0.9rem; margin-bottom: 5px; color: var(--text-muted); }
+.modal-field input {
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.modal-btn {
+    border: none;
+    padding: 10px 15px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+.modal-btn-cancel { background: var(--line); color: var(--text-main); }
+.modal-btn-confirm { background: var(--accent); color: var(--accent-contrast); }
+.modal-btn-text-cancel { background: none; color: var(--accent-danger); }
+
+.time-picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.time-opt {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 15px;
+    border-radius: var(--radius-md);
+    font-weight: bold;
+    color: var(--text-main);
+}
+
+.edit-subtasks-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.edit-subtask-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.edit-subtask-row input {
+    flex-grow: 1;
+    padding: 8px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+}
+
+.edit-subtask-delete {
+    background: var(--accent-danger);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+}
+
+/* Modo enfoque */
+.focus-title {
+    font-family: var(--font-display);
+    color: var(--accent);
+}
+
+.timer-display {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.focus-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.focus-btn-play {
+    background: var(--accent-success);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.focus-btn-exit {
+    background: var(--accent-danger);
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Responsive: en mobile el sidebar de sugerencias pasa a ser un <details>
+   colapsable (sin JS) en vez de desaparecer por completo, como pasaba antes. */
+@media (max-width: 900px) {
+    .app-container { grid-template-columns: 1fr; }
+
+    .suggestions-column {
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 16px;
+    }
+
+    .suggestions-column summary {
+        cursor: pointer;
+        list-style: revert;
+    }
+
+    .suggestions-column summary::-webkit-details-marker { display: revert; }
+
+    .suggestions-column ul { margin-top: 14px; }
+}
+
+@media (min-width: 901px) {
+    /* En desktop el contenido de <details> se muestra siempre, esté
+       "open" o no -el toggle nativo solo tiene sentido en mobile-. */
+    .suggestions-column > *:not(summary) { display: block !important; }
 }

@@ -1,30 +1,57 @@
-# Aesthetic To-Do List ✅
+# ✨ Lista de Tareas Aesthetic
 
-Una aplicación de gestión de tareas diseñada con una estética **Glassmorphism**, enfocada en la limpieza visual y una experiencia de usuario fluida. Este proyecto combina funcionalidades avanzadas de organización con un diseño moderno y minimalista.
+To-do list vanilla JS (sin frameworks) con listas múltiples, subtareas, moodboard de imágenes/colores, drag & drop entre columnas, plantillas reutilizables y modo enfoque (pomodoro).
 
-## 📸 Vista Previa
-La interfaz utiliza transparencias, desenfoques de fondo (backdrop-filter) y una paleta de colores pastel para lograr un look "aesthetic" tanto en modo claro como oscuro.
+## Demo
 
-## ✨ Funcionalidades Principales
-- **Gestión de Listas Dinámicas**: Crea, renombra (directamente en el título) y elimina múltiples listas de tareas.
-- **Sistema de Tareas y Subtareas**: Organiza tus pendientes con un segundo nivel de detalle para un control total.
-- **Sugerencias Personalizadas**: Guarda tus estructuras de listas favoritas como plantillas en la barra lateral para reutilizarlas con un solo clic.
-- **Modo Oscuro**: Cambia entre temas visuales para proteger tu vista y adaptar la app a tu estilo.
-- **Persistencia de Datos**: Gracias al uso de `localStorage`, tus tareas y preferencias se mantienen guardadas incluso después de cerrar el navegador.
-- **Interfaz Reactiva**: Notificaciones visuales (Toasts) y renderizado dinámico de iconos mediante Lucide Icons.
+> _Agregá acá el link una vez que lo despliegues en GitHub Pages / Netlify / Vercel (los tres sirven gratis para un sitio 100% estático como este)._
 
-## 🛠️ Tecnologías Utilizadas
-- **HTML5**: Estructura semántica clara.
-- **CSS3 (Glassmorphism)**: Uso de variables CSS, Flexbox, Grid y efectos de desenfoque avanzados.
-- **JavaScript (Vanilla)**: Lógica pura para manipulación del DOM, manejo de estados y almacenamiento local.
-- **Lucide Icons**: Iconografía vectorial nítida y escalable.
+## Stack y decisiones técnicas
 
-## 📂 Estructura del Proyecto
-```text
-├── index.html          # Estructura principal de la aplicación
-├── css/
-│   └── style.css       # Estilos detallados y variables de diseño
-├── js/
-│   ├── script.js       # Lógica principal de listas y tareas
-│   └── utils.js        # Helpers para iconos y notificaciones
-└── assets/             # Recursos adicionales (opcional)
+- **Vanilla JS con ES Modules** (`import`/`export`) — sin build step, sin dependencias de runtime.
+- **Estado centralizado**: toda la app se renderiza a partir de un único árbol de datos en memoria (`StateManager`), que es también lo único que se persiste a `localStorage`. Cualquier cambio (agregar/editar/borrar lista, tarea o subtarea) pasa por `StateManager` y dispara un re-render — un patrón simplificado de "estado como fuente de verdad", similar en espíritu a Redux/Zustand pero sin librería.
+- **DOM construido con `createElement`, nunca `innerHTML` con datos del usuario** — evita XSS por diseño.
+- **Drag & drop nativo** (HTML5 Drag and Drop API) para mover tareas entre columnas "Pendiente" / "Realizada".
+- **Sin dependencias de build**: abrir `index.html` con un servidor estático (Live Server, `npx serve`, etc.) alcanza. Los `<script type="module">` requieren servirse por HTTP, no funcionan con `file://`.
+
+## Cómo correrlo localmente
+
+```bash
+npx serve .
+# o
+python3 -m http.server 8000
+```
+
+Abrir `http://localhost:PORT` en el navegador.
+
+## Tests
+
+Hay un test de integración (`test.mjs`) que simula el DOM con `jsdom` y valida el flujo de estado de punta a punta (crear lista desde plantilla, agregar subtarea, "recargar" y verificar que persiste, borrar tarea y verificar que no reaparece).
+
+```bash
+npm install
+npm test
+```
+
+## Seguridad
+
+- El ícono `lucide` se carga desde `unpkg` con versión fijada (no `@latest`). Falta agregar [Subresource Integrity](https://developer.mozilla.org/es/docs/Web/Security/Subresource_Integrity) (`integrity="sha384-..."`) — se puede generar con:
+  ```bash
+  curl -s https://unpkg.com/lucide@1.30.0/dist/umd/lucide.min.js | openssl dgst -sha384 -binary | openssl base64 -A
+  ```
+
+## Estructura
+
+```
+index.html
+css/style.css
+js/
+  main.js            # punto de entrada, arma la UI y conecta todo
+  StateManager.js     # única fuente de verdad del estado + persistencia
+  StorageService.js   # acceso a localStorage
+  TaskService.js       # render de listas/tareas/subtareas + eventos
+  utils.js             # toasts, modales, timer de foco
+  debounce.js          # utilidad genérica de debounce
+test.mjs               # test de integración (jsdom)
+```
+

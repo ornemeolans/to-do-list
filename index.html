@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lista de Tareas Aesthetic</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Versión fijada (antes: @latest, que puede romper la app sin aviso
+         ante un cambio breaking de la librería). Pendiente: agregar el
+         atributo integrity (SRI) — ver README, sección "Seguridad". -->
+    <script src="https://unpkg.com/lucide@1.30.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -19,21 +22,17 @@
                 <h1>Mis Listas</h1>
                 <button id="dark-toggle" class="icon-btn" title="Cambiar Tema">🌙</button>
             </div>
-            <div class="input-container" style="margin-bottom: 30px; display: flex; gap: 10px;">
-                <input type="text" id="new-list-input" placeholder="Nombre de la nueva lista..." style="flex-grow: 1;">
+            <div class="input-container">
+                <input type="text" id="new-list-input" placeholder="Nombre de la nueva lista...">
                 <button id="add-list-btn">Crear Lista</button>
             </div>
             <div id="lists-container"></div>
         </main>
     </div>
 
-<script src="js/StorageService.js"></script>
-<script src="js/StateManager.js"></script>
-<script src="js/TaskService.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/script-refactored.js"></script>
-    
-    <div id="template-modal" style="display: none;"></div>
+    <script type="module" src="js/main.js"></script>
+
+    <div id="template-modal" class="modal-root" style="display: none;"></div>
     <div id="focus-overlay" class="focus-overlay" style="display: none;"></div>
 </body>
 </html>
