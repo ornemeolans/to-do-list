@@ -1,38 +1,130 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="is-loading">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lista de Tareas Aesthetic</title>
+    <title>Lavanda — listas con calma</title>
+    <meta name="description" content="Gestor de tareas en JavaScript puro: listas múltiples, subtareas, moodboard visual, drag & drop, plantillas con variables y modo enfoque.">
+    <meta name="theme-color" content="#ecebe6" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1d1113" media="(prefers-color-scheme: dark)">
+    <meta property="og:title" content="Lavanda — listas con calma">
+    <meta property="og:description" content="To-do list editorial hecha con HTML, CSS y JavaScript sin frameworks.">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+
+    <!-- Tema antes del primer pintado: evita el destello claro→oscuro. -->
+    <script>
+        (function () {
+            var root = document.documentElement, saved = null;
+            root.classList.add('js');
+            try { saved = localStorage.getItem('theme'); } catch (e) {}
+            var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            root.dataset.theme = dark ? 'dark' : 'light';
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
     <link rel="stylesheet" href="css/style.css">
-    <!-- Versión fijada (antes: @latest, que puede romper la app sin aviso
-         ante un cambio breaking de la librería). Pendiente: agregar el
-         atributo integrity (SRI) — ver README, sección "Seguridad". -->
-    <script src="https://unpkg.com/lucide@1.30.0/dist/umd/lucide.min.js"></script>
+    <script type="module" src="js/main.js"></script>
 </head>
 <body>
-    <div class="app-container">
-        <aside class="suggestions-column">
-            <h2>Sugerencias ✨</h2>
-            <ul id="suggestions-list"></ul>
+    <!-- Loader: el logo se dibuja a sí mismo mientras se hidrata el estado. -->
+    <div id="app-loader" class="loader" aria-hidden="true">
+        <svg class="loader__mark" viewBox="0 0 64 64">
+            <rect class="loader__box" x="6" y="6" width="52" height="52" rx="16" />
+            <path class="loader__check" d="M20 33l8.5 8.5L45 24" />
+        </svg>
+        <span class="loader__word">Lavanda</span>
+    </div>
+
+    <a class="skip-link" href="#workspace">Saltar a mis listas</a>
+
+    <header class="topbar shell">
+        <a class="brand" href="./" aria-label="Lavanda, inicio">
+            <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+                <rect width="32" height="32" rx="9" />
+                <path d="M9 16.5l4.5 4.5L23 11" />
+            </svg>
+            <span class="brand__name">Lavanda</span>
+        </a>
+        <div class="topbar__actions">
+            <p class="kbd-hint"><kbd>/</kbd> nueva lista</p>
+            <p id="sync-status" class="sync" data-status="local" role="status">
+                <span class="sync__dot" aria-hidden="true"></span>
+                <span class="sync__label">Guardado en este dispositivo</span>
+            </p>
+            <button id="account-btn" class="account" type="button" hidden></button>
+            <button id="theme-toggle" class="icon-btn icon-btn--outline" type="button" aria-pressed="false" aria-label="Cambiar tema"></button>
+        </div>
+    </header>
+
+    <section class="hero shell" aria-labelledby="hero-title">
+        <div class="hero__glow" aria-hidden="true"></div>
+
+        <div class="hero__copy" data-reveal>
+            <p class="eyebrow"><time id="today"></time></p>
+            <h1 id="hero-title" class="hero__title">
+                Lo que importa,
+                <span class="hero__accent">hoy
+                    <svg class="hero__scribble" viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true">
+                        <path d="M3 15c38-9 79-12 120-7 23 3 47 4 74-3" />
+                    </svg>
+                </span>.
+            </h1>
+            <p class="hero__lead">Listas que puedes armar, mover y tachar sin ruido. Plantillas con variables, moodboards por tarea y un temporizador para cuando toca concentrarse.</p>
+
+            <form id="new-list-form" class="create" novalidate>
+                <label class="visually-hidden" for="new-list-input">Nombre de la nueva lista</label>
+                <input type="text" id="new-list-input" class="create__input" placeholder="Nombra una lista nueva…" autocomplete="off" maxlength="80">
+                <button type="submit" class="btn btn--primary create__btn">
+                    Crear lista
+                    <svg class="icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+            </form>
+        </div>
+
+        <aside class="stats" aria-label="Resumen de progreso" data-reveal style="--stagger:1">
+            <div id="progress-ring" class="stats__ring" style="--progress:0">
+                <svg viewBox="0 0 120 120" aria-hidden="true">
+                    <circle class="stats__track" cx="60" cy="60" r="52" />
+                    <circle class="stats__bar" cx="60" cy="60" r="52" pathLength="1" />
+                </svg>
+                <p class="stats__pct"><span data-stat="progress">0</span><small>%</small></p>
+            </div>
+            <dl class="stats__grid">
+                <div><dt>Listas</dt><dd data-stat="lists">0</dd></div>
+                <div><dt>Pendientes</dt><dd data-stat="pending">0</dd></div>
+                <div><dt>Hechas</dt><dd data-stat="done">0</dd></div>
+            </dl>
+            <p id="stats-caption" class="stats__caption" aria-live="polite"></p>
+        </aside>
+    </section>
+
+    <div id="workspace" class="workspace shell" tabindex="-1">
+        <aside class="templates" aria-labelledby="templates-title" data-reveal>
+            <div class="templates__head">
+                <h2 id="templates-title" class="section-label">Plantillas</h2>
+                <p class="templates__hint">Un clic y la lista está armada.</p>
+            </div>
+            <ul id="suggestions-list" class="templates__list"></ul>
         </aside>
 
-        <main class="lists-column">
-            <div class="header-main">
-                <h1>Mis Listas</h1>
-                <button id="dark-toggle" class="icon-btn" title="Cambiar Tema">🌙</button>
+        <main class="lists" aria-labelledby="lists-title">
+            <h2 id="lists-title" class="section-label">Mis listas</h2>
+            <div id="lists-container" class="lists__grid" aria-busy="true" aria-live="off">
+                <!-- Skeleton visible hasta el primer render -->
+                <div class="skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="skeleton" aria-hidden="true"><span></span><span></span><span></span></div>
             </div>
-            <div class="input-container">
-                <input type="text" id="new-list-input" placeholder="Nombre de la nueva lista...">
-                <button id="add-list-btn">Crear Lista</button>
-            </div>
-            <div id="lists-container"></div>
         </main>
     </div>
 
-    <script type="module" src="js/main.js"></script>
-
-    <div id="template-modal" class="modal-root" style="display: none;"></div>
-    <div id="focus-overlay" class="focus-overlay" style="display: none;"></div>
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+    <dialog id="app-dialog" class="dialog"></dialog>
+    <dialog id="focus-dialog" class="focus"></dialog>
 </body>
 </html>

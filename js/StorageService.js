@@ -52,6 +52,15 @@ function writeActiveLists(activeLists) {
 // queda actualizado al instante; esto solo afecta cuándo se persiste a localStorage.
 const debouncedWrite = debounce(writeActiveLists, 250);
 
+// Si la pestaña se cierra, recarga o pasa a segundo plano (móvil) con una
+// escritura pendiente, se guarda ya mismo.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    window.addEventListener('pagehide', debouncedWrite.flush);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') debouncedWrite.flush();
+    });
+}
+
 export const StorageService = {
     MAX_IMAGE_SIZE,
 
@@ -77,8 +86,19 @@ export const StorageService = {
         }
     },
 
-    saveSuggestions(predefinedLists) {
-        localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
+    // `updatedAt` permite fusionar plantillas entre dispositivos (gana la más
+    // reciente). Las plantillas por defecto usan 0 para no pisar la nube.
+    // Los cambios locales emiten `templates:local-change` (lo escucha SyncService).
+    saveSuggestions(predefinedLists, { updatedAt = Date.now(), remote = false } = {}) {
+        try {
+            localStorage.setItem('suggestions', JSON.stringify(predefinedLists));
+            localStorage.setItem('suggestionsUpdatedAt', String(updatedAt));
+        } catch (e) {
+            console.error('No se pudieron guardar las plantillas:', e);
+        }
+        if (!remote && typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+            document.dispatchEvent(new CustomEvent('templates:local-change'));
+        }
     },
 
     loadSuggestions() {
@@ -88,8 +108,37 @@ export const StorageService = {
         } catch (e) {
             console.error('suggestions corrupto en localStorage, se reinicia:', e);
         }
-        this.saveSuggestions(predefinedListsInit);
+        this.saveSuggestions(predefinedListsInit, { updatedAt: 0, remote: true });
         return predefinedListsInit.slice();
+    },
+
+    suggestionsUpdatedAt() {
+        return Number(localStorage.getItem('suggestionsUpdatedAt')) || 0;
+    },
+
+    // --- Marcas de borrado locales: { [listId]: deletedAt } ---
+    // Sirven para que un borrado hecho sin conexión se respete al sincronizar.
+    loadDeletedLists() {
+        try {
+            return JSON.parse(localStorage.getItem('deletedLists')) || {};
+        } catch {
+            return {};
+        }
+    },
+
+    saveDeletedLists(map) {
+        // Se descartan las marcas de más de 60 días para que no crezca sin límite.
+        const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000;
+        const pruned = Object.fromEntries(Object.entries(map).filter(([, at]) => at > cutoff));
+        try {
+            localStorage.setItem('deletedLists', JSON.stringify(pruned));
+        } catch (e) {
+            console.error('No se pudieron guardar los borrados:', e);
+        }
+    },
+
+    clearAll() {
+        ['activeLists', 'suggestions', 'suggestionsUpdatedAt', 'deletedLists'].forEach(k => localStorage.removeItem(k));
     },
 
     deleteSuggestion(index) {

@@ -1,21 +1,29 @@
 // TaskService: capa de RENDER. Toma datos de StateManager y arma el DOM.
-// Los eventos que arma no tocan el DOM de estado directamente -llaman a
-// métodos de StateManager-, que es quien decide qué cambió y dispara el
-// próximo render vía `onChange`. Antes, buena parte de esto vivía como JSON
-// pegado en `dataset.subtasks`, desincronizado de StateManager: ese es el
-// bug que se resolvió unificando todo acá.
+// Los eventos nunca guardan estado en el DOM: llaman a StateManager, que
+// muta el estado y dispara el próximo render vía `onChange`.
 import { StateManager } from './StateManager.js';
 import { StorageService } from './StorageService.js';
+import { icon, iconButton } from './icons.js';
 import * as utils from './utils.js';
 
-// Info de la tarea que se está arrastrando (reemplaza el `window.draggedTask` global)
+const { el } = utils;
+
+// Tarea que se está arrastrando (sin globals en window).
 let draggedTaskInfo = null; // { listId, taskId }
+
+// Qué listas ya se pintaron alguna vez: solo las NUEVAS se animan al entrar,
+// así un re-render por tildar una subtarea no vuelve a disparar animaciones.
+const seenListIds = new Set();
+let firstRender = true;
+
+// Tarea recién marcada como realizada → se anima el trazo de tachado.
+let justCompletedTaskId = null;
 
 export function extractVariables(list) {
     let allText = list.name;
     list.tasks.forEach(t => {
-        allText += " " + t.text;
-        if (t.subtasks) t.subtasks.forEach(s => allText += " " + s.text);
+        allText += ' ' + t.text;
+        if (t.subtasks) t.subtasks.forEach(s => allText += ' ' + s.text);
     });
     const varMatch = allText.match(/{([a-zA-Z]+)}/g);
     return varMatch ? [...new Set(varMatch.map(v => v.slice(1, -1).toLowerCase()))] : [];
@@ -23,7 +31,7 @@ export function extractVariables(list) {
 
 export function validateVisual(text) {
     const isColor = /^#[0-9A-F]{6}$/i.test(text);
-    const isDataUrl = /^data:image\/[a-z]+;base64,/i.test(text);
+    const isDataUrl = /^data:image\/[a-z+]+;base64,/i.test(text);
     const isImgUrl = /^(http|https):\/\/.*\.(jpg|jpeg|png|webp|gif|svg)/i.test(text);
     return { isColor, isImg: isDataUrl || isImgUrl, content: text };
 }
@@ -33,428 +41,435 @@ export function validateTaskText(text) {
     return trimmed || null;
 }
 
-// --- Entrada principal de render ---
-
+/* ------------------------------------------------------------------
+   Entrada principal
+------------------------------------------------------------------ */
 export function renderAll(activeLists, container) {
-    container.innerHTML = '';
     if (!Array.isArray(activeLists)) {
         console.warn('activeLists no es un array:', activeLists);
         return;
     }
-    activeLists.forEach(list => renderList(list, container));
-    utils.initLucideIcons();
+
+    container.replaceChildren();
+    container.setAttribute('aria-busy', 'false');
+
+    if (activeLists.length === 0) {
+        container.append(renderEmptyState());
+        return;
+    }
+
+    activeLists.forEach((list, index) => {
+        const card = renderList(list, index);
+        if (!seenListIds.has(list.id)) {
+            // Primera carga: reveal escalonado. Después: solo la lista nueva.
+            card.classList.add(firstRender ? 'reveal' : 'is-new');
+            card.style.setProperty('--stagger', firstRender ? index : 0);
+            seenListIds.add(list.id);
+        }
+        container.append(card);
+    });
+
+    firstRender = false;
+    justCompletedTaskId = null;
 }
 
-function renderList(list, container) {
-    const listDiv = document.createElement('div');
-    listDiv.className = 'task-list';
-    listDiv.dataset.listId = list.id;
+function renderEmptyState() {
+    return el('div', { className: 'empty-state' }, [
+        el('div', { className: 'empty-state__art', 'aria-hidden': 'true' }, [
+            el('span', { className: 'empty-state__sheet' }),
+            el('span', { className: 'empty-state__sheet' }),
+            el('span', { className: 'empty-state__sheet' }, icon('check', { size: 28 }))
+        ]),
+        el('h2', { className: 'empty-state__title', text: 'Una página en blanco.' }),
+        el('p', { className: 'empty-state__text', text: 'Crea tu primera lista desde arriba o arranca con una plantilla de la columna izquierda.' })
+    ]);
+}
 
-    const fragment = document.createDocumentFragment();
+/* ------------------------------------------------------------------
+   Lista (tarjeta con tablero de dos columnas)
+------------------------------------------------------------------ */
+function renderList(list, index) {
+    const done = list.tasks.filter(t => t.status === 'Realizada').length;
+    const total = list.tasks.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    const titleId = `list-title-${list.id}`;
 
-    const h3 = document.createElement('h3');
-    h3.contentEditable = true;
-    h3.setAttribute('aria-label', 'Nombre de la lista (editar)');
-    h3.textContent = list.name;
-    h3.addEventListener('blur', () => {
-        const text = validateTaskText(h3.textContent);
-        if (!text) {
-            utils.showToast('El nombre de la lista no puede estar vacío');
-            h3.textContent = list.name; // revertir al último valor válido conocido
-            return;
-        }
+    const title = editable('h2', 'list-card__title', list.name, 'Nombre de la lista', (text) => {
         StateManager.updateListName(list.id, text);
+    }, 'El nombre de la lista no puede estar vacío');
+    title.id = titleId;
+
+    const saveBtn = iconButton('bookmark', 'Guardar como plantilla');
+    saveBtn.addEventListener('click', () => {
+        StorageService.saveListAsSuggestion({ name: list.name, tasks: list.tasks });
+        document.dispatchEvent(new CustomEvent('suggestions:changed'));
+        utils.showToast('Guardada en tus plantillas', 'success');
     });
-    fragment.appendChild(h3);
 
-    const taskColumns = document.createElement('div');
-    taskColumns.className = 'task-columns';
-    taskColumns.setAttribute('role', 'region');
-    taskColumns.setAttribute('aria-label', 'Columnas de tareas');
+    const deleteBtn = iconButton('trash', 'Eliminar lista', 'icon-btn--danger');
+    deleteBtn.addEventListener('click', () => {
+        const removed = StateManager.deleteList(list.id);
+        if (!removed) return;
+        seenListIds.delete(list.id);
+        utils.showToast(`“${list.name}” eliminada`, 'info', {
+            label: 'Deshacer',
+            onClick: () => StateManager.insertList(removed.list, removed.index)
+        });
+    });
 
-    const colPending = buildColumn('Pendiente', 'PENDIENTES');
-    const colDone = buildColumn('Realizada', 'REALIZADAS');
-    taskColumns.appendChild(colPending.col);
-    taskColumns.appendChild(colDone.col);
-    fragment.appendChild(taskColumns);
+    const header = el('header', { className: 'list-card__head' }, [
+        el('div', { className: 'list-card__heading' }, [
+            el('p', { className: 'eyebrow', text: `Lista ${String(index + 1).padStart(2, '0')}` }),
+            title
+        ]),
+        el('div', { className: 'list-card__tools' }, [saveBtn, deleteBtn])
+    ]);
 
-    const listFooter = document.createElement('div');
-    listFooter.className = 'list-footer';
+    const progress = el('div', { className: 'list-card__progress' }, [
+        el('div', {
+            className: 'meter', role: 'progressbar', 'aria-label': 'Progreso de la lista',
+            'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': pct
+        }, el('span', { className: 'meter__fill', style: `--p:${pct}%` })),
+        el('span', { className: 'list-card__count', text: `${done}/${total}` })
+    ]);
 
-    const taskInput = document.createElement('input');
-    taskInput.type = 'text';
-    taskInput.placeholder = 'Nueva tarea...';
-    taskInput.className = 'task-input';
-    taskInput.setAttribute('aria-label', 'Nueva tarea');
-
-    const addTaskBtn = document.createElement('button');
-    addTaskBtn.className = 'add-task-btn';
-    addTaskBtn.setAttribute('aria-label', 'Agregar tarea');
-    addTaskBtn.appendChild(iconEl('plus'));
-
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'save-suggestion-btn';
-    saveBtn.setAttribute('aria-label', 'Guardar como sugerencia');
-    saveBtn.appendChild(iconEl('save'));
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'delete-list-btn';
-    deleteBtn.setAttribute('aria-label', 'Eliminar lista');
-    deleteBtn.appendChild(iconEl('trash-2'));
-
-    listFooter.appendChild(taskInput);
-    listFooter.appendChild(addTaskBtn);
-    listFooter.appendChild(saveBtn);
-    listFooter.appendChild(deleteBtn);
-    fragment.appendChild(listFooter);
-
-    listDiv.appendChild(fragment);
-    container.appendChild(listDiv);
-
-    // Render de tareas ya existentes en el estado
+    const pending = buildColumn(list, 'Pendiente', 'Pendientes');
+    const completed = buildColumn(list, 'Realizada', 'Realizadas');
     list.tasks.forEach(task => {
-        const targetUl = task.status === 'Realizada' ? colDone.ul : colPending.ul;
-        targetUl.appendChild(renderTask(list, task));
+        (task.status === 'Realizada' ? completed : pending).ul.append(renderTask(list, task));
+    });
+    [pending, completed].forEach(col => {
+        if (!col.ul.children.length) {
+            col.ul.append(el('li', {
+                className: 'column__empty',
+                text: col.status === 'Pendiente'
+                    ? (total ? 'Todo listo por aquí.' : 'Sin tareas todavía.')
+                    : 'Arrastra tareas aquí al terminarlas.'
+            }));
+        }
+        col.count.textContent = col.ul.querySelectorAll('.task-item').length;
     });
 
-    // --- Eventos de la lista ---
-
-    const submitNewTask = () => {
-        const text = taskInput.value.trim();
+    // Composer: un <form> real → Enter funciona sin listeners globales.
+    const input = el('input', {
+        type: 'text', className: 'composer__input', placeholder: 'Añadir una tarea…',
+        'aria-label': `Nueva tarea en ${list.name}`, maxlength: 140
+    });
+    const composer = el('form', { className: 'composer' }, [
+        input,
+        el('button', { type: 'submit', className: 'composer__submit', 'aria-label': 'Agregar tarea', title: 'Agregar tarea' }, icon('plus'))
+    ]);
+    composer.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
         if (!text) {
-            utils.showToast('No se pueden crear tareas vacías', 'advertencia');
+            composer.classList.remove('is-shaking');
+            void composer.offsetWidth; // reinicia la animación
+            composer.classList.add('is-shaking');
+            utils.showToast('Escribe algo antes de agregar la tarea', 'warning');
             return;
         }
         StateManager.addTask(list.id, { text, status: 'Pendiente', subtasks: [] });
-        taskInput.value = '';
-    };
-    addTaskBtn.onclick = submitNewTask;
-    taskInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); submitNewTask(); } };
-
-    saveBtn.onclick = () => {
-        // Como ahora `list` ES el estado real, guardamos la lista tal cual
-        // está -antes había que reconstruirla leyendo el DOM tarea por tarea-.
-        StorageService.saveListAsSuggestion({ name: list.name, tasks: list.tasks });
-        utils.showToast('¡Lista guardada en sugerencias! ✨', 'exito');
-        if (typeof window.renderSuggestions === 'function') window.renderSuggestions();
-    };
-
-    deleteBtn.onclick = () => {
-        StateManager.deleteList(list.id);
-        utils.showToast('Lista eliminada', 'info');
-    };
-
-    // Drag & drop: solo se admite mover tareas entre columnas de LA MISMA lista.
-    [colPending.ul, colDone.ul].forEach(ul => {
-        ul.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            ul.classList.add('drag-over');
-        });
-        ul.addEventListener('dragleave', () => ul.classList.remove('drag-over'));
-        ul.addEventListener('drop', (e) => {
-            e.preventDefault();
-            ul.classList.remove('drag-over');
-            if (!draggedTaskInfo) return;
-            if (draggedTaskInfo.listId !== list.id) {
-                // La versión anterior "aceptaba" este drop pero no movía nada
-                // realmente entre listas (bug silencioso). Ahora se avisa.
-                utils.showToast('No se pueden mover tareas entre listas distintas', 'advertencia');
-                return;
-            }
-            const targetStatus = ul.closest('.task-column').dataset.status;
-            StateManager.setTaskStatus(draggedTaskInfo.listId, draggedTaskInfo.taskId, targetStatus, true);
+        // Re-render: devolvemos el foco al composer de esta misma lista.
+        requestAnimationFrame(() => {
+            document.querySelector(`[data-list-id="${list.id}"] .composer__input`)?.focus();
         });
     });
+
+    return el('article', {
+        className: `list-card${total && pct === 100 ? ' is-complete' : ''}`,
+        dataset: { listId: list.id },
+        'aria-labelledby': titleId
+    }, [
+        header,
+        progress,
+        el('div', { className: 'board' }, [pending.col, completed.col]),
+        composer
+    ]);
 }
 
-function buildColumn(status, label) {
-    const col = document.createElement('div');
-    col.className = 'task-column';
-    col.dataset.status = status;
-    const h4 = document.createElement('h4');
-    h4.className = 'task-column-label';
-    h4.textContent = label;
-    const ul = document.createElement('ul');
-    ul.className = 'task-column-list';
-    ul.setAttribute('aria-label', `Tareas ${label.toLowerCase()}`);
-    col.appendChild(h4);
-    col.appendChild(ul);
-    return { col, ul };
-}
+function buildColumn(list, status, label) {
+    const count = el('span', { className: 'column__count' });
+    const ul = el('ul', { className: 'column__list', 'aria-label': `Tareas ${label.toLowerCase()}` });
+    const col = el('section', { className: 'column', dataset: { status } }, [
+        el('h3', { className: 'column__label' }, [
+            el('span', { className: 'column__dot', 'aria-hidden': 'true' }), label, count
+        ]),
+        ul
+    ]);
 
-function iconEl(name) {
-    const i = document.createElement('i');
-    i.dataset.lucide = name;
-    return i;
-}
-
-// --- Render de una tarea ---
-
-function renderTask(list, task) {
-    const taskLi = document.createElement('li');
-    taskLi.className = 'task-item';
-    taskLi.draggable = true;
-    taskLi.addEventListener('dragstart', () => {
-        draggedTaskInfo = { listId: list.id, taskId: task.id };
+    // Drag & drop nativo — toda la columna es zona de drop, no solo el <ul>.
+    col.addEventListener('dragover', (e) => {
+        if (!draggedTaskInfo) return;
+        e.preventDefault();
+        col.classList.add('is-drop-target');
     });
-    taskLi.addEventListener('dragend', () => { draggedTaskInfo = null; });
-
-    const taskMain = document.createElement('div');
-    taskMain.className = 'task-main';
-
-    const taskText = document.createElement('span');
-    taskText.className = 'task-text';
-    taskText.contentEditable = true;
-    taskText.textContent = task.text;
-    taskText.addEventListener('blur', () => {
-        const text = validateTaskText(taskText.textContent);
-        if (!text) {
-            utils.showToast('El texto no puede estar vacío');
-            taskText.textContent = task.text;
+    col.addEventListener('dragleave', (e) => {
+        if (!col.contains(e.relatedTarget)) col.classList.remove('is-drop-target');
+    });
+    col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        col.classList.remove('is-drop-target');
+        if (!draggedTaskInfo) return;
+        if (draggedTaskInfo.listId !== list.id) {
+            utils.showToast('Las tareas solo se mueven dentro de su lista', 'warning');
             return;
         }
-        StateManager.updateTask(list.id, task.id, { text });
+        const task = StateManager.getTask(list.id, draggedTaskInfo.taskId);
+        if (!task || task.status === status) return;
+        if (status === 'Realizada') justCompletedTaskId = task.id;
+        StateManager.setTaskStatus(list.id, task.id, status, true);
     });
-    taskMain.appendChild(taskText);
 
-    const statusSelect = document.createElement('select');
-    statusSelect.className = 'status-select';
-    statusSelect.setAttribute('aria-label', 'Estado de la tarea');
-    const optPending = new Option('⏳ Pendiente', 'Pendiente', false, task.status === 'Pendiente');
-    const optDone = new Option('✅ Realizada', 'Realizada', false, task.status === 'Realizada');
-    statusSelect.appendChild(optPending);
-    statusSelect.appendChild(optDone);
-    statusSelect.addEventListener('change', () => {
-        StateManager.setTaskStatus(list.id, task.id, statusSelect.value, true);
+    return { col, ul, count, status };
+}
+
+/* ------------------------------------------------------------------
+   Tarea
+------------------------------------------------------------------ */
+function renderTask(list, task) {
+    const isDone = task.status === 'Realizada';
+    const textSubs = task.subtasks.filter(s => !s.isVisual);
+    const subsDone = textSubs.filter(s => s.completed).length;
+
+    const li = el('li', {
+        className: `task-item${isDone ? ' is-done' : ''}${task.id === justCompletedTaskId ? ' just-done' : ''}`,
+        draggable: 'true',
+        dataset: { taskId: task.id }
     });
-    taskMain.appendChild(statusSelect);
+    li.addEventListener('dragstart', (e) => {
+        draggedTaskInfo = { listId: list.id, taskId: task.id };
+        e.dataTransfer?.setData('text/plain', task.text);
+        requestAnimationFrame(() => li.classList.add('is-dragging'));
+    });
+    li.addEventListener('dragend', () => {
+        draggedTaskInfo = null;
+        li.classList.remove('is-dragging');
+    });
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'task-edit-btn';
-    editBtn.title = 'Editar';
-    editBtn.setAttribute('aria-label', 'Editar tarea');
-    editBtn.appendChild(iconEl('edit-3'));
+    // Check circular: alternativa accesible (teclado) al drag & drop.
+    const check = el('button', {
+        type: 'button', className: 'task-check',
+        'aria-pressed': String(isDone),
+        'aria-label': isDone ? 'Marcar como pendiente' : 'Marcar como realizada'
+    }, icon('check', { size: 14 }));
+    check.addEventListener('click', () => {
+        const next = isDone ? 'Pendiente' : 'Realizada';
+        if (next === 'Realizada') justCompletedTaskId = task.id;
+        StateManager.setTaskStatus(list.id, task.id, next, true);
+    });
+
+    const text = editable('span', 'task-text', task.text, 'Texto de la tarea', (value) => {
+        StateManager.updateTask(list.id, task.id, { text: value });
+    }, 'El texto no puede estar vacío');
+
+    const editBtn = iconButton('pencil', 'Editar tarea', '', 16);
     editBtn.addEventListener('click', () => {
-        const current = {
+        utils.showTaskEditModal('Editar tarea', {
             text: task.text,
-            subtasks: task.subtasks.map(s => ({ text: s.text, completed: s.completed }))
-        };
-        utils.showTaskEditModal('Editar Tarea', current, (newData) => {
-            const newSubtasks = newData.subtasks.map(s => ({
-                text: s.text,
-                completed: s.completed || false,
-                isVisual: validateVisual(s.text).isImg || /^#[0-9A-F]{6}$/i.test(s.text)
-            }));
-            StateManager.updateTask(list.id, task.id, { text: newData.text, subtasks: newSubtasks });
+            subtasks: task.subtasks.map(s => ({ ...s }))
+        }, (newData) => {
+            StateManager.updateTask(list.id, task.id, newData);
         }, validateTaskText);
     });
-    taskMain.appendChild(editBtn);
 
-    const focusBtn = document.createElement('button');
-    focusBtn.className = 'focus-btn';
-    focusBtn.title = 'Enfoque';
-    focusBtn.setAttribute('aria-label', 'Modo enfoque');
-    focusBtn.appendChild(iconEl('target'));
+    const focusBtn = iconButton('target', 'Modo enfoque', '', 16);
     focusBtn.addEventListener('click', () => {
-        const data = { text: task.text, subtasks: task.subtasks.filter(s => !s.isVisual) };
-        utils.showTimePickerModal((mins) => {
-            utils.showFocusModal(data, mins, utils.hideFocusModal);
-        });
+        const data = { text: task.text, subtasks: textSubs };
+        utils.showTimePickerModal((mins) => utils.showFocusModal(data, mins, utils.hideFocusModal));
     });
-    taskMain.appendChild(focusBtn);
 
-    const deleteBtnTask = document.createElement('button');
-    deleteBtnTask.className = 'delete-task-btn';
-    deleteBtnTask.setAttribute('aria-label', 'Eliminar tarea');
-    deleteBtnTask.appendChild(iconEl('x'));
-    deleteBtnTask.addEventListener('click', () => {
-        StateManager.deleteTask(list.id, task.id);
+    const deleteBtn = iconButton('x', 'Eliminar tarea', 'icon-btn--danger', 16);
+    deleteBtn.addEventListener('click', () => {
+        li.classList.add('is-leaving');
+        const remove = () => StateManager.deleteTask(list.id, task.id);
+        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) remove();
+        else setTimeout(remove, 200);
     });
-    taskMain.appendChild(deleteBtnTask);
 
-    taskLi.appendChild(taskMain);
+    const meta = textSubs.length
+        ? el('span', { className: 'task-meta', title: 'Subtareas completadas' }, `${subsDone}/${textSubs.length}`)
+        : null;
 
-    const moodboard = document.createElement('div');
-    moodboard.className = 'moodboard-container';
-    taskLi.appendChild(moodboard);
+    li.append(el('div', { className: 'task-row' }, [
+        el('span', { className: 'task-grip', 'aria-hidden': 'true' }, icon('grip', { size: 14 })),
+        check,
+        el('div', { className: 'task-body' }, [text, meta]),
+        el('div', { className: 'task-tools' }, [focusBtn, editBtn, deleteBtn])
+    ]));
 
-    const subtaskList = document.createElement('ul');
-    subtaskList.className = 'subtask-list';
-    taskLi.appendChild(subtaskList);
+    const visuals = task.subtasks.map((s, i) => ({ s, i, v: validateVisual(s.text) }))
+        .filter(({ s, v }) => s.isVisual && (v.isColor || v.isImg));
+    if (visuals.length) li.append(renderMoodboard(list, task, visuals));
 
-    const subControls = document.createElement('div');
-    subControls.className = 'subtask-controls';
+    const subList = el('ul', { className: 'subtasks' });
+    task.subtasks.forEach((sub, index) => {
+        const v = validateVisual(sub.text);
+        if (sub.isVisual && (v.isColor || v.isImg)) return;
+        subList.append(renderSubtask(list, task, sub, index));
+    });
+    if (subList.children.length) li.append(subList);
 
-    const subInput = document.createElement('input');
-    subInput.type = 'text';
-    subInput.placeholder = 'Subtarea...';
-    subInput.className = 'sub-input';
-    subControls.appendChild(subInput);
+    li.append(renderSubComposer(list, task));
+    return li;
+}
 
-    const addSubBtn = document.createElement('button');
-    addSubBtn.className = 'add-sub-btn';
-    addSubBtn.setAttribute('aria-label', 'Agregar subtarea');
-    addSubBtn.textContent = '+';
-    subControls.appendChild(addSubBtn);
+function renderSubtask(list, task, sub, index) {
+    const id = `sub-${task.id}-${index}`;
+    const checkbox = el('input', { type: 'checkbox', id, className: 'subtask__check' });
+    checkbox.checked = !!sub.completed;
+    checkbox.addEventListener('change', () => {
+        StateManager.updateSubtask(list.id, task.id, index, { completed: checkbox.checked });
+    });
 
-    const imageBtn = document.createElement('button');
-    imageBtn.className = 'add-image-btn';
-    imageBtn.setAttribute('aria-label', 'Agregar imagen local');
-    imageBtn.textContent = '📁';
+    const text = editable('span', 'subtask__text', sub.text, 'Texto de la subtarea', (value) => {
+        StateManager.updateSubtask(list.id, task.id, index, { text: value });
+    }, 'La subtarea no puede estar vacía');
+
+    const del = iconButton('x', 'Eliminar subtarea', 'icon-btn--danger icon-btn--xs', 14);
+    del.addEventListener('click', () => StateManager.deleteSubtask(list.id, task.id, index));
+
+    return el('li', { className: `subtask${sub.completed ? ' is-done' : ''}` }, [
+        checkbox,
+        el('label', { className: 'subtask__box', for: id, 'aria-label': 'Completar subtarea' }, icon('check', { size: 12 })),
+        text,
+        del
+    ]);
+}
+
+function renderSubComposer(list, task) {
+    const input = el('input', {
+        type: 'text', className: 'sub-input', placeholder: 'Subtarea, #color o URL…',
+        'aria-label': 'Nueva subtarea', maxlength: 2000
+    });
+    const imageBtn = iconButton('image', 'Subir imagen al moodboard', 'icon-btn--xs', 16);
     imageBtn.addEventListener('click', async () => {
         const base64 = await pickLocalImage();
         if (base64) {
             StateManager.addSubtask(list.id, task.id, { text: base64, isVisual: true });
-            utils.showToast('Imagen agregada al moodboard');
+            utils.showToast('Imagen agregada al moodboard', 'success');
         }
     });
-    subControls.appendChild(imageBtn);
-    taskLi.appendChild(subControls);
 
-    const submitSubtask = () => {
-        const text = subInput.value.trim();
+    const form = el('form', { className: 'sub-composer' }, [
+        el('span', { className: 'sub-composer__plus', 'aria-hidden': 'true' }, icon('plus', { size: 14 })),
+        input,
+        imageBtn
+    ]);
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
         if (!text) return;
-        const isVisual = validateVisual(text).isColor || validateVisual(text).isImg;
-        StateManager.addSubtask(list.id, task.id, { text, isVisual });
-        subInput.value = '';
-    };
-    addSubBtn.onclick = submitSubtask;
-    subInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); submitSubtask(); }
+        const v = validateVisual(text);
+        StateManager.addSubtask(list.id, task.id, { text, isVisual: v.isColor || v.isImg });
+        requestAnimationFrame(() => {
+            document.querySelector(`[data-task-id="${task.id}"] .sub-input`)?.focus();
+        });
     });
-
-    renderSubtasks(list, task, moodboard, subtaskList);
-
-    return taskLi;
+    return form;
 }
 
-function renderSubtasks(list, task, moodboard, subtaskList) {
-    moodboard.innerHTML = '';
-    subtaskList.innerHTML = '';
-
-    task.subtasks.forEach((sub, index) => {
-        const validation = validateVisual(sub.text);
-
-        if (sub.isVisual && (validation.isColor || validation.isImg)) {
-            const item = document.createElement('div');
-            item.className = 'mood-item';
-            if (validation.isColor) item.style.backgroundColor = sub.text;
-            else item.style.backgroundImage = `url(${sub.text})`;
-
-            item.onclick = (e) => {
-                if (e.target.closest('.delete-mood-btn')) return;
-                showFullVisual(sub.text, validation.isColor);
-            };
-            item.oncontextmenu = async (e) => {
-                e.preventDefault();
-                const base64 = await pickLocalImage();
-                if (base64) StateManager.addSubtask(list.id, task.id, { text: base64, isVisual: true });
-            };
-
-            const delBtn = document.createElement('button');
-            delBtn.className = 'delete-mood-btn';
-            delBtn.textContent = '✕';
-            delBtn.onclick = (e) => {
-                e.stopPropagation();
-                StateManager.deleteSubtask(list.id, task.id, index);
-            };
-            item.appendChild(delBtn);
-            moodboard.appendChild(item);
-        } else {
-            const subLi = document.createElement('li');
-            subLi.className = 'subtask-item';
-
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.checked = sub.completed || false;
-            checkbox.addEventListener('change', (e) => {
-                e.stopPropagation();
-                StateManager.updateSubtask(list.id, task.id, index, { completed: checkbox.checked });
+function renderMoodboard(list, task, visuals) {
+    return el('div', { className: 'moodboard', role: 'list', 'aria-label': 'Moodboard' },
+        visuals.map(({ s, i, v }) => {
+            const tile = el('button', {
+                type: 'button', className: 'mood-tile', role: 'listitem',
+                'aria-label': v.isColor ? `Color ${s.text}` : 'Ver imagen',
+                title: v.isColor ? s.text : 'Ver imagen'
             });
+            if (v.isColor) tile.style.backgroundColor = s.text;
+            else tile.style.backgroundImage = `url("${s.text}")`;
+            tile.addEventListener('click', () => showFullVisual(s.text, v.isColor));
 
-            const textSpan = document.createElement('span');
-            textSpan.contentEditable = true;
-            textSpan.textContent = sub.text;
-            textSpan.addEventListener('blur', () => {
-                const text = validateTaskText(textSpan.textContent);
-                if (!text) {
-                    utils.showToast('La subtarea no puede estar vacía');
-                    textSpan.textContent = sub.text;
-                    return;
-                }
-                StateManager.updateSubtask(list.id, task.id, index, { text });
-            });
+            const del = iconButton('x', 'Quitar del moodboard', 'mood-tile__remove', 12);
+            del.addEventListener('click', () => StateManager.deleteSubtask(list.id, task.id, i));
+            return el('div', { className: 'mood-item' }, [tile, del]);
+        })
+    );
+}
 
-            const deleteBtnSub = document.createElement('button');
-            deleteBtnSub.className = 'delete-sub-btn';
-            deleteBtnSub.appendChild(iconEl('trash-2'));
-            deleteBtnSub.addEventListener('click', (e) => {
-                e.stopPropagation();
-                StateManager.deleteSubtask(list.id, task.id, index);
-            });
-
-            subLi.appendChild(checkbox);
-            subLi.appendChild(textSpan);
-            subLi.appendChild(deleteBtnSub);
-            subtaskList.appendChild(subLi);
+/* ------------------------------------------------------------------
+   Texto editable inline: Enter confirma, Esc revierte, vacío no se acepta.
+------------------------------------------------------------------ */
+function editable(tag, className, value, label, onCommit, emptyMsg) {
+    const node = el(tag, {
+        className: `${className} editable`, role: 'textbox', 'aria-label': label,
+        spellcheck: 'false', text: value
+    });
+    node.contentEditable = 'true';
+    node.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); node.blur(); }
+        if (e.key === 'Escape') { node.textContent = value; node.blur(); }
+    });
+    node.addEventListener('blur', () => {
+        const text = validateTaskText(node.textContent);
+        if (!text) {
+            utils.showToast(emptyMsg, 'warning');
+            node.textContent = value;
+            return;
         }
+        if (text !== value) onCommit(text);
     });
-
-    utils.initLucideIcons();
+    return node;
 }
 
-// --- Imágenes locales (moodboard) ---
-
+/* ------------------------------------------------------------------
+   Imágenes locales (moodboard)
+------------------------------------------------------------------ */
 function pickLocalImage() {
     return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.className = 'visually-hidden-file-input';
-        document.body.appendChild(input);
-        input.click();
+        const input = el('input', { type: 'file', accept: 'image/*', className: 'visually-hidden' });
+        document.body.append(input);
 
-        input.onchange = (e) => {
-            const file = e.target.files[0];
+        input.addEventListener('change', () => {
+            const file = input.files[0];
             input.remove();
+            if (!file) return resolve(null);
 
-            if (!file) { resolve(null); return; }
-
-            if (file.size > StorageService.MAX_IMAGE_SIZE) {
-                utils.showToast(`Imagen muy grande (${(file.size / 1024 / 1024).toFixed(1)}MB > 1MB)`, 'advertencia');
-                resolve(null);
-                return;
+            if (file.size > 20 * 1024 * 1024) {
+                utils.showToast('La imagen supera los 20 MB', 'warning');
+                return resolve(null);
             }
-
-            const reader = new FileReader();
-            reader.onload = (ev) => resolve(ev.target.result);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(file);
-        };
-
-        input.onblur = () => {
-            input.remove();
-            resolve(null);
-        };
+            downscaleImage(file).then((dataUrl) => {
+                if (StorageService.isBigImage(dataUrl)) {
+                    utils.showToast('La imagen sigue siendo demasiado pesada tras comprimirla', 'warning');
+                    return resolve(null);
+                }
+                resolve(dataUrl);
+            }).catch(() => {
+                utils.showToast('No se pudo leer la imagen', 'warning');
+                resolve(null);
+            });
+        });
+        input.addEventListener('cancel', () => { input.remove(); resolve(null); });
+        input.click();
     });
+}
+
+// Redimensiona a 1280px como máximo y re-codifica (WebP, o JPEG si el navegador
+// no lo soporta): una foto de 4 MB del celular queda en ~150 KB, lo que
+// cuida localStorage y el límite de 1 MB por documento de Firestore.
+async function downscaleImage(file, maxSide = 1280) {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const webp = canvas.toDataURL('image/webp', 0.82);
+    return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.82);
 }
 
 function showFullVisual(content, isColor) {
-    const viewer = document.createElement('div');
-    viewer.className = 'visual-viewer-overlay';
+    const media = isColor
+        ? el('div', { className: 'viewer__swatch', style: `background:${content}` }, el('span', { text: content }))
+        : el('img', { className: 'viewer__img', src: content, alt: 'Imagen del moodboard' });
 
-    let viewerContent;
-    if (isColor) {
-        viewerContent = document.createElement('div');
-        viewerContent.className = 'viewer-content viewer-content-color';
-        viewerContent.style.background = content;
-    } else {
-        viewerContent = document.createElement('img');
-        viewerContent.src = content;
-        viewerContent.className = 'viewer-content viewer-content-img';
-    }
-    viewer.appendChild(viewerContent);
-
-    viewer.onclick = () => viewer.remove();
-    document.body.appendChild(viewer);
+    utils.openDialog({
+        eyebrow: 'Moodboard',
+        title: isColor ? 'Color' : 'Imagen',
+        body: media,
+        size: 'lg'
+    });
 }
