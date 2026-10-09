@@ -138,7 +138,12 @@ function openSignInDialog() {
                         utils.showToast('Sesión iniciada. Sincronizando tus listas', 'success');
                     } catch (err) {
                         console.error(err);
-                        utils.showToast('No se pudo iniciar sesión. Inténtalo de nuevo.', 'warning');
+                        const msg = {
+                            'auth/unauthorized-domain': `Este dominio (${location.hostname}) no está autorizado en Firebase`,
+                            'auth/popup-blocked': 'El navegador bloqueó la ventana de Google. Permite las ventanas emergentes e inténtalo de nuevo.',
+                            'auth/network-request-failed': 'Sin conexión con Google. Revisa tu internet.'
+                        }[err.code] || 'No se pudo iniciar sesión. Inténtalo de nuevo.';
+                        utils.showToast(msg, 'warning');
                     }
                 }
             }, [googleLogo(), 'Continuar con Google'])

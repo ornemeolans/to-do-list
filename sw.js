@@ -7,7 +7,7 @@
 //    no cambian), actualizándose en segundo plano.
 //  - Todo lo demás (APIs de Firestore/Auth) pasa directo: de su modo offline
 //    se encarga el propio SDK con su caché en IndexedDB.
-const VERSION = 'lavanda-v2';
+const VERSION = 'aesthetic-todo-v3';
 const SHELL = [
     './',
     './index.html',

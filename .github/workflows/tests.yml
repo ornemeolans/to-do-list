@@ -1,5 +1,7 @@
-name: Tests y deploy
+name: Tests
 
+# El deploy lo hace Netlify automáticamente con cada push a main
+# (configuración en netlify.toml). Este workflow verifica la calidad.
 on:
   push:
     branches: [main]
@@ -8,12 +10,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   test:
@@ -37,23 +33,3 @@ jobs:
           name: playwright-report
           path: test-results/
           retention-days: 7
-
-  deploy:
-    needs: test
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Armar el sitio (solo los archivos de la app)
-        run: |
-          mkdir _site
-          cp -r index.html sw.js manifest.webmanifest css js icons _site/
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4

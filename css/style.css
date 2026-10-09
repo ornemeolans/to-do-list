@@ -1,5 +1,5 @@
 /* ==================================================================
-   Lavanda — sistema de diseño
+   Aesthetic To-Do List — sistema de diseño
    ------------------------------------------------------------------
    Dirección: cuaderno editorial. Papel cálido, tinta rojo-óxido y un
    único acento rosa "Glamorous" (paleta Provenza). Serif expresiva
@@ -1278,8 +1278,8 @@ html:not(.is-loading) .loader { opacity: 0; visibility: hidden; }
     .js .stats[data-reveal].is-visible { transform: none; }
     .hero__glow { inset: 0 0 auto auto; }
 
-    .workspace { grid-template-columns: 1fr; gap: var(--s-5); }
-    .templates { position: static; }
+    .workspace { grid-template-columns: minmax(0, 1fr); gap: var(--s-5); }
+    .templates { position: static; min-width: 0; }
     /* Plantillas → carrusel horizontal con scroll-snap */
     .templates__list {
         display: flex;
@@ -1308,6 +1308,11 @@ html:not(.is-loading) .loader { opacity: 0; visibility: hidden; }
     .sync__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .account__text { display: none; }
     .account { width: 2.25rem; padding: 0; justify-content: center; }
+    /* Nombre largo: una sola línea, más compacto */
+    .brand { gap: var(--s-2); min-width: 0; }
+    .brand__name { font-size: 1.05rem; white-space: nowrap; }
+    .topbar { gap: var(--s-2); }
+    .topbar__actions { gap: var(--s-2); }
     .topbar { padding-block: var(--s-4); }
     .kbd-hint { display: none; }
 
@@ -1330,4 +1335,9 @@ html:not(.is-loading) .loader { opacity: 0; visibility: hidden; }
 
     .focus__actions .btn { flex: 1 1 auto; }
     .footer { flex-direction: column; }
+}
+
+@media (max-width: 380px) {
+    .brand__name { font-size: 0.95rem; }
+    .brand__mark { width: 1.75rem; height: 1.75rem; }
 }

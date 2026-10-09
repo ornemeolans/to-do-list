@@ -1,8 +1,8 @@
-# Lavanda — listas con calma
+# Aesthetic To-Do List — listas con calma
 
 Gestor de tareas **offline-first** en JavaScript puro (sin frameworks ni build step): listas múltiples, tablero Pendientes/Realizadas con drag & drop, subtareas, moodboard visual, plantillas con variables, modo enfoque y **sincronización entre dispositivos**.
 
-**Demo:** https://ornemeolans.github.io/to-do-list/
+**Demo:** https://aesthetic-to-do-list.netlify.app/
 
 ## Funcionalidades
 
@@ -54,7 +54,7 @@ npm run test:e2e     # Playwright: escritorio + móvil, incluye prueba sin conex
 ## Activar la sincronización (Firebase, plan gratuito)
 
 1. Crear un proyecto en [console.firebase.google.com](https://console.firebase.google.com).
-2. **Authentication** → Método de acceso → habilitar **Google**. En *Configuración → Dominios autorizados*, agregar `ornemeolans.github.io`.
+2. **Authentication** → Método de acceso → habilitar **Google**. En *Configuración → Dominios autorizados*, agregar `aesthetic-to-do-list.netlify.app`.
 3. **Firestore Database** → Crear base de datos (modo producción) → pestaña **Reglas** → pegar el contenido de [`firestore.rules`](firestore.rules) → Publicar.
 4. **Configuración del proyecto** → Tus apps → **Web** → copiar el objeto de configuración en [`js/firebase-config.js`](js/firebase-config.js).
 
@@ -62,7 +62,9 @@ Sin este paso la app funciona igual, solo que en local.
 
 ## Deploy
 
-Cada push a `main` ejecuta [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): corre los tests unitarios y e2e y, si pasan, publica en GitHub Pages. Solo hay que activarlo una vez en *Settings → Pages → Source: GitHub Actions*.
+Netlify publica automáticamente cada push a `main`. [`netlify.toml`](netlify.toml) define que solo se publiquen los archivos de la app (no tests ni scripts) y que el service worker nunca quede cacheado.
+
+En paralelo, [`.github/workflows/tests.yml`](.github/workflows/tests.yml) corre los tests unitarios y e2e en cada push y pull request.
 
 ## Estructura
 
@@ -70,6 +72,7 @@ Cada push a `main` ejecuta [`.github/workflows/deploy.yml`](.github/workflows/de
 index.html              marcado semántico: hero, plantillas, listas, diálogos
 sw.js                   service worker (offline)
 manifest.webmanifest    PWA instalable
+netlify.toml            deploy en Netlify (qué se publica + cabeceras)
 firestore.rules         reglas de seguridad de la base de datos
 css/style.css           sistema de diseño (tokens → componentes → motion → responsive)
 js/

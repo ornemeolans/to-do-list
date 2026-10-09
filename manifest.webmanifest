@@ -1,6 +1,6 @@
 {
-  "name": "Lavanda — listas con calma",
-  "short_name": "Lavanda",
+  "name": "Aesthetic To-Do List",
+  "short_name": "Aesthetic",
   "description": "Listas de tareas con tablero, subtareas, moodboard y modo enfoque. Funciona sin conexión.",
   "lang": "es",
   "start_url": "./",
